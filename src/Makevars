@@ -1,0 +1,5 @@
+# Do not put GCC specific flags here. Put them instead in CLAGS and
+# CXXLAGS in ~/.R/Makevars
+PKG_CFLAGS =
+PKG_LIBS =
+#$(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)

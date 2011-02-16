@@ -1,0 +1,14 @@
+importFrom("modeltools", "ModelEnvFormula")
+#importFrom("lattice","xyplot") # Maybe in the future
+
+useDynLib(eaf,compute_eaf_C,.registration = TRUE)
+#export(compute_eaf_C)
+export(eafplot,eafplot.formula,eafplot.list,eafplot.data.frame,eafplot.default) #eafs
+#export(eafplot2,eafplot2.formula,eafplot2.list,eafplot2.data.frame,eafplot2.default,eafs2)
+export(read.data.sets)
+#export(compute.eaf,compute.eafdiff, compute.eaf.as.list)
+#export(sciNotation)
+export(eafdiffplot) # .plot.eafdiff.side)
+
+
+#S3method(print, foo)
