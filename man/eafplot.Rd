@@ -119,9 +119,9 @@ a vector indicating which percentile should be plot. The default is to plot only
 \item{\dots}{Other graphical parameters to \code{\link{plot.default}}.
 }
 }
-\details{
-%%  ~~ If necessary, more details than the description above ~~
-}
+% \details{
+% %%  ~~ If necessary, more details than the description above ~~
+% }
 \value{
 %%  ~Describe the value returned
 %%  If it is a LIST, use
@@ -130,15 +130,15 @@ a vector indicating which percentile should be plot. The default is to plot only
 %% ...
 No value is returned.
 }
-\references{
-%% ~put references to the literature/web site here ~
-}
-\author{
-  %%  ~~who you are~~
-}
-\note{
-%%  ~~further notes~~
-}
+% \references{
+% %% ~put references to the literature/web site here ~
+% }
+% \author{
+%   %%  ~~who you are~~
+% }
+% \note{
+% %%  ~~further notes~~
+% }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
@@ -181,6 +181,6 @@ data(SPEA2minstoptimeRichmond)
 SPEA2minstoptimeRichmond[,2] <- SPEA2minstoptimeRichmond[,2] / 60
 eafplot (SPEA2minstoptimeRichmond, xlab = expression(C[E]),
          ylab = "Minimum idle time (minutes)",
-         las = 1, log = "y", ymaximise = TRUE)
+         las = 1, log = "y", ymaximise = TRUE, main = "SPEA2 (Richmond)")
 }
 \keyword{graphs}

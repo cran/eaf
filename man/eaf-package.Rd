@@ -52,7 +52,7 @@ minimum idle time of pumps on Richmond water network}
 }
 
 
-Extras are available at \code{file.path(system.file(package="eaf")}:
+Extras are available at \code{file.path(system.file(package="eaf"))}:
 
 \tabular{ll}{
 
@@ -102,10 +102,10 @@ Extras are available at \code{file.path(system.file(package="eaf")}:
 \keyword{Time-quality algorithm profile}
 \keyword{Empirical attainment function }
 
-\seealso{
-%%~~ Optional links to other man pages, e.g. ~~
-%%~~ \code{\link[<pkg>:<pkg>-package]{<pkg>}} ~~
-}
+% \seealso{
+% %%~~ Optional links to other man pages, e.g. ~~
+% %%~~ \code{\link[<pkg>:<pkg>-package]{<pkg>}} ~~
+% }
 \examples{
 data(gcp2x2)
 tabucol<-subset(gcp2x2, alg!="TSinN1")

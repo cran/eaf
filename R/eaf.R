@@ -46,7 +46,7 @@
 #    http://google-styleguide.googlecode.com/svn/trunk/google-r-style.html
 #
 ################################################################################
-#dyn.load("../src/EAF.so")
+#dyn.load("../src/eaf.so")
 
 compute.eaf <- function(data, percentiles = NULL)
 {
@@ -74,14 +74,15 @@ compute.eaf.as.list <- function(data, percentiles = NULL)
 {
   eaf <- compute.eaf (data, percentiles = percentiles)
   return (lapply(split.data.frame(eaf, as.factor(eaf[,3])),
-                 function(x) { x[,-3] }))
+                 function(x) { x[,-3, drop = FALSE] }))
 }
 
 compute.eafdiff <- function(DATA, intervals = 1)
 {
   # The C code expects points within a set to be contiguous.
   DATA <- DATA[order(DATA[,3]),]
-  npoints <- aggregate(DATA[,1],list(DATA[,3]),length)$x
+  # aggregate is quite slow on large data sets because of paste()
+  npoints <- aggregate(DATA[,1], list(DATA[,3]),length)$x
   nsets <- length(unique(DATA[,3]))
   division <- nsets %/% 2
   nsets1 <- division
@@ -96,8 +97,8 @@ compute.eafdiff <- function(DATA, intervals = 1)
                 )
   # FIXME: Do this computation in C code.
   eafdiff <- list(left=NULL, right=NULL)
-  eafdiff$left <- DIFF[ DIFF[,3] >= 1, ]
-  eafdiff$right <- DIFF[ DIFF[,3] <= -1, ]
+  eafdiff$left <- unique(DIFF[ DIFF[,3] >= 1, ])
+  eafdiff$right <- unique(DIFF[ DIFF[,3] <= -1, ])
   eafdiff$right[,3] <- -eafdiff$right[,3]
   return(eafdiff)
 }
@@ -404,7 +405,7 @@ eafplot.default <-
                                las = par("las"),
                                full.eaf = FALSE,
                                title = "",
-                               ymaximise = FALSE,
+                               maximise = c(FALSE, FALSE),
                                xlab = "objective 1", ylab = "objective 2",
                                ...)
 {
@@ -412,7 +413,8 @@ eafplot.default <-
   type <- match.arg (type, c("point", "area"))
   xaxis.side <- if (side == "left") 1 else 3
   yaxis.side <- if (side == "left") 2 else 4
-
+  maximise <- as.logical(maximise)
+  
   # Why flooring and not ceiling? If a point has value 2.05, it should
   # be painted with color 2 rather than 3.
   # +1 because col[1] is white.
@@ -421,27 +423,26 @@ eafplot.default <-
     stop ("Too few colors: length(unique(eafdiff[,3])) > length(col)")
   }
 
-  infinito1 <- 1.0e+25
-  infinito2 <- 1.0e+25
-  if (!is.null(xlim)) infinito1 <- xlim[2] * 1.1
-  if (!is.null(ylim)) infinito2 <- ylim[2] * 1.1
-
+  extreme <- c(1.0e+25, 1.0e+25)
+  if (!is.null(xlim)) extreme[1] <- ifelse(maximise[1],
+                                           xlim[1] - 0.05 * diff(xlim),
+                                           xlim[2] + 0.05 * diff(xlim))
+  if (!is.null(ylim)) extreme[2] <- ifelse(maximise[2],
+                                           ylim[1] - 0.05 * diff(ylim),
+                                           ylim[2] + 0.05 * diff(ylim))
   yscale <- 1
-
-  if (ymaximise) {
-    yscale <- 60
-    yreverse <- -1
-    eafdiff[,2] <- yreverse * eafdiff[,2] / yscale
+#    yscale <- 60
+  if (yscale != 1) {
+    eafdiff[,2] <- eafdiff[,2] / yscale
     attsurfs <- lapply (attsurfs, function (x)
-                        { x[,2] <- yreverse * x[,2] / yscale; x })
-    ylim <-      yreverse * ylim      / yscale
-    infinito2 <- yreverse * 1.0e+20
-    if (log == "y") infinito2 <- 1
+                        { x[,2] <- x[,2] / yscale; x })
+    ylim <- ylim / yscale
+    if (log == "y") extreme[2] <- 1
   }
 
   attsurfs <- lapply (attsurfs,
-                      function (x) { x <- rbind(c(min(x[,1]), infinito2),
-                                                x[,1:2], c(infinito1, min(x[,2]))) })
+                      function (x) { x <- rbind(c(min(x[,1]), extreme[2]),
+                                                x[,1:2], c(extreme[1], min(x[,2]))) })
 
   plot(xlim, ylim, type="n", xlab = "", ylab = "",
        ylim = ylim, xlim = xlim, log = log, axes=FALSE,
@@ -459,7 +460,7 @@ eafplot.default <-
                cex = par("cex") * par("cex.axis"))
 
          at <- axTicks(2)
-         if (ymaximise) { at <- c(yscale * c(1:24)) }
+         #if (ymaximise) { at <- c(yscale * c(1:24)) }
          labels <- formatC(at,format="g")
          if (log == "y") {
            ## Custom log axis (like gnuplot but in R is hard)
@@ -491,8 +492,8 @@ eafplot.default <-
              for (i in 1:length(col)) {
                if (full.eaf) {
                  poli <- points.steps(eafdiff[eafdiff[,3] == i, c(1,2)])
-                 poli <- rbind(c(min(poli[,1]), infinito2), poli,
-                               c(infinito1, min(poli[,2])), c(infinito1, infinito2))
+                 poli <- rbind(c(min(poli[,1]), extreme[2]), poli,
+                               c(extreme[1], min(poli[,2])), c(extreme[1], extreme[2]))
                  polygon(poli[,1], poli[,2], border = NA, col = col[i])
                } else {
                  stop("The combination of parameters: type=\"area\", full.eaf=FALSE is not implemented yet.")
@@ -544,6 +545,7 @@ eafdiffplot <-
            title.right = deparse(substitute(data.right)),
            xlim = NULL, ylim = NULL,
            cex = par("cex"), cex.lab = par("cex.lab"), cex.axis = par("cex.axis"),
+           maximise = c(FALSE, FALSE),
            ...)
 {
   type <- match.arg (type, c("point", "area"))
@@ -552,7 +554,16 @@ eafdiffplot <-
   } else if (length(intervals) > length(col)) {
     stop ("More intervals than colors: length(intervals) > length(col)")
   }
+  title.left <- title.left
+  title.right <- title.right
+  maximise <- as.logical(maximise)
 
+  if (!is.null(xlim) && maximise[1]) xlim <- -xlim 
+  if (!is.null(ylim) && maximise[2]) ylim <- -ylim
+  
+  data.left[, which(maximise)] <- -data.left[, which(maximise)]
+  data.right[, which(maximise)] <- -data.right[, which(maximise)]
+  
   attsurfs.left <- compute.eaf.as.list (data.left, percentiles)
   attsurfs.right <- compute.eaf.as.list (data.right, percentiles)
 
@@ -611,13 +622,24 @@ eafdiffplot <-
             , lab = c(10,5,7)
             , las = 0
             )
+
+  if (maximise[1]) xlim <- range(-xlim)
+  if (maximise[2]) ylim <- range(-ylim)
+
+  DIFF$left[, which(maximise)] <- - DIFF$left[, which(maximise)]
+  DIFF$right[, which(maximise)] <- - DIFF$right[, which(maximise)]
+
+  attsurfs <- c(list(grand.best), attsurfs.left, list(grand.worst))
+  attsurfs <- lapply (attsurfs, function (x)
+                      { x[, which(maximise)] <- -x[, which(maximise)]; x })
+
   .plot.eafdiff.side (DIFF$left,
-                     attsurfs = c(list(grand.best), attsurfs.left, list(grand.worst)),
+                     attsurfs = attsurfs,
                      col = col,
                      type = type, full.eaf = full.eaf,
                      title = title.left,
                      xlim = xlim, ylim = ylim,
-                     side = "left", ...)
+                     side = "left", maximise = maximise, ...)
 
   if (nchar(legend.pos) > 0 && !(legend.pos %in% c("no", "none"))) {
     legend(x = legend.pos, y = NULL,
@@ -625,15 +647,19 @@ eafdiffplot <-
            bg = "white", bty = "n", xjust=0, yjust=0, cex=0.9)
   }
 
-  par(mar=c(bottommar, 0, topmar, rightmar))
+  par(mar = c(bottommar, 0, topmar, rightmar))
+
+  attsurfs <- c(list(grand.best), attsurfs.right, list(grand.worst))
+  attsurfs <- lapply (attsurfs, function (x)
+                      { x[, which(maximise)] <- -x[, which(maximise)]; x })
 
   .plot.eafdiff.side (DIFF$right,
-                     attsurfs = c(list(grand.best), attsurfs.right, list(grand.worst)),
-                     col = col,
-                     type = type, full.eaf = full.eaf,
-                     title = title.right,
-                     xlim = xlim, ylim = ylim,
-                     side = "right", ...)
+                      attsurfs = attsurfs,
+                      col = col,
+                      type = type, full.eaf = full.eaf,
+                      title = title.right,
+                      xlim = xlim, ylim = ylim,
+                      side = "right", maximise = maximise, ...)
   par(op)
 }
 

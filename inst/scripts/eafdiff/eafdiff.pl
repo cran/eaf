@@ -5,9 +5,10 @@
 #
 #---------------------------------------------------------------------
 #
-# Copyright (c) 2007, 2008, 2010  
+# Copyright (c) 2007, 2008, 2010, 2011  
 # Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
-# LaTeX: \copyright 2007, 2008, 2010  Manuel L{\'o}pez-Ib{\'a}{\~n}ez
+# LaTeX: \copyright 2007, 2008, 2010, 2011 
+#        Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -92,6 +93,7 @@ my $legend = '"[0.0, 0.2)","[0.2, 0.4)","[0.4, 0.6)","[0.6, 0.8)","[0.8, 1.0]"';
 
 my $save_temps = 0;
 my $compress_flag = 0;
+my $flag_xmaximise = 0;
 my $flag_ymaximise = 0;
 my $fulleaf_flag = 0;
 my $area_flag;
@@ -133,6 +135,9 @@ Create a plot of the differences between the EAFs of FILE1 and FILE2.
      --xlim=REAL,REAL  limits of x-axis
      --ylim=REAL,REAL  limits of y-axis
 
+     --maximise      handle a maximisation problem
+     --xmaximise     maximise first objective
+     --ymaximise     maximise second objective
 
  -o  --output=FILE   output file
      --full          plot the full EAF instead of the differences
@@ -142,7 +147,6 @@ Create a plot of the differences between the EAFs of FILE1 and FILE2.
                      (requires ImageMagick)
      --save-temps    Keep temporary files in the current directory
 EOF
-#    --ymaximise    EXPERIMENTAL
     exit $exitcode;
 }
 
@@ -189,9 +193,14 @@ while (@ARGV) {
         my $arg = &get_arg ($argv);
         $ylim  = "c($arg)" if ($arg);
     }
-
-    elsif ($argv =~ /--ymaximise/ or $argv =~ /-ymaximise/) {
-        print "$progname: maximising y-axis\n";
+    elsif ($argv =~ /--maxim/) {
+        $flag_xmaximise = 1;
+        $flag_ymaximise = 1;
+    }
+    elsif ($argv =~ /--xmax/) {
+        $flag_xmaximise = 1;
+    }
+    elsif ($argv =~ /--ymax/) {
         $flag_ymaximise = 1;
     }
     elsif ($argv =~ /--full/) {
@@ -270,19 +279,6 @@ $label_left = basename($file1) unless (defined($label_left) and $label_left);
 $label_right= basename($file2) unless (defined($label_right) and $label_right);
 $area_flag = 0 unless (defined($area_flag));
 
-my $tmp1 = "$$.1.tmp";
-my $tmp2 = "$$.2.tmp";
-
-if ($flag_ymaximise) {
-    my $transform = "nondominated";
-    # Transform: 1st objective minimization, 2nd objective
-    # maximization, unify all for minimization.
-    &requiredprog($transform);
-    &execute("$transform -o -+ -a min < $file1 > $tmp1");
-    &execute("$transform -o -+ -a min < $file2 > $tmp2");
-    $file1 = $tmp1;
-    $file2 = $tmp2;
-}
 
 $label_left = parse_expression ($label_left);
 $label_right = parse_expression ($label_right);
@@ -323,7 +319,7 @@ title.left  <- $label_left
 title.right <- $label_right
 eps.file  <- "$output_eps"
 legend.pos <- "$legendpos"
-ymaximise <- ${flag_ymaximise}
+maximise <- c(${flag_xmaximise}, ${flag_ymaximise})
 xlab <- $label_obj1
 ylab <- $label_obj2
 Xlim <- $xlim
@@ -356,7 +352,7 @@ eafdiffplot (data.left, data.right, col = col, intervals = intervals,
               full.eaf = full.eaf, type = eaf.type, legend.pos = legend.pos,
               title.left = title.left, title.right = title.right,
               cex = 1.0, cex.lab = 1.1, cex.axis = 1.0,
-              xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab, ymaximise = ymaximise)
+              xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab, maximise = maximise)
 dev.off()
 cat (paste("eafdiffplot:", eps.file, "\n"))
 
@@ -421,7 +417,7 @@ if ($compress_flag) {
 }
 
 unless ($save_temps) {
-    unlink("$$.R", "$$.Rout", $tmp1, $tmp2);
+    unlink("$$.R", "$$.Rout");
 } else {
     print "$progname: generated R script: $$.R\n";
 }

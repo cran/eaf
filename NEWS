@@ -1,0 +1,11 @@
+
+1.03
+
+* Handle maximise argument in eafdiffplot and --maximise command-line
+  option in eafdiff.pl
+
+* R/calls.R (eafplot.data.frame): Fix problem with main parameter.
+
+1.00 
+
+* Initial release available in CRAN.

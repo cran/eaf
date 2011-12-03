@@ -18,17 +18,17 @@ The data has the only goal of providing an example of use of eafplot.
       network. The second column is filled with \code{NA}}
   }
 }
-\details{
-%%  ~~ If necessary, more details than the __description__ above ~~
-}
+% \details{
+% %%  ~~ If necessary, more details than the __description__ above ~~
+% }
 \source{
   Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. Operational Optimisation of Water Distribution
   Networks. PhD thesis, School of Engineering and the Built Environment,
   Edinburgh Napier University, UK, 2009.
 }
-\references{
-%%  ~~ possibly secondary sources and usages ~~
-}
+% \references{
+% %%  ~~ possibly secondary sources and usages ~~
+% }
 \examples{
 data(HybridGA)
 print(HybridGA$vanzyl)

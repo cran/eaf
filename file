@@ -1,0 +1,5 @@
+binary
+cd incoming
+put eaf_1.03.tar.gz
+quit
+

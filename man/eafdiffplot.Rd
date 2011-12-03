@@ -24,6 +24,7 @@ eafdiffplot(data.left, data.right,
              cex = par("cex"),
              cex.lab = par("cex.lab"),
              cex.axis = par("cex.axis"),
+             maximise = c(FALSE, FALSE),
              ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -61,6 +62,10 @@ eafdiffplot(data.left, data.right,
   graphical
     parameters, see \code{\link{plot.default}}.
 }
+\item{maximise}{whether the first and/or second objective correspond to
+  a maximisation problem.
+}
+
 \item{\dots}{other graphical parameters are passed down to
   \code{\link{plot.default}}.
 }
@@ -78,14 +83,14 @@ eafdiffplot(data.left, data.right,
 \value{
   No return value.
 }
-\references{
-}
-\author{
-%%  ~~who you are~~
-}
-\note{
-%%  ~~further notes~~
-}
+% \references{
+% }
+% \author{
+% %%  ~~who you are~~
+% }
+% \note{
+% %%  ~~further notes~~
+% }
 
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 

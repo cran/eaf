@@ -161,32 +161,34 @@ eafplot.list<-function(x,...) {
 }
 
 
-eafplot.data.frame<-function(x,y=NULL,...) {
+eafplot.data.frame <- function(x, y = NULL, ...)
+{
+  eafplot.data.frame2 <- function(x, groups, main = DNAME, ...)
+    eafplot(as.matrix(x[,c(1,2)]), as.numeric(x[,3]),
+            groups = groups, main = main, ...)
+  
   if (!is.data.frame(x))
-    stop("'x' must be a data.frame with exactly three columns.\n
-                                                If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula,data,...)'")
+    stop("'x' must be a data.frame with exactly three columns.\n",
+         "  If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
+
+  if (nrow(x) < 1L)
+    stop("not enough (finite) 'x' observations")
+  
   if (!is.null(y)) {
     if (!is.data.frame(y))
       stop("'y' must be a data.frame with exactly three columns")
-    DNAME <- paste(deparse(substitute(x)), "and", deparse(substitute(y)))
-  }
-  else {
-    DNAME <- deparse(substitute(x))
-  }
-  if (nrow(x) < 1L)
-    stop("not enough (finite) 'x' observations")
-
-  if (!is.null(y)) {
     if (nrow(y) < 1L)
       stop("not enough (finite) 'y' observations")
-    DT<-rbind(data.frame(x,groups=deparse(substitute(x))),
-              data.frame(y,groups=deparse(substitute(y)))
-              )
-    eafplot(as.matrix(DT[,c(1,2)]),as.numeric(DT[,3]),groups=as.factor(DT[,4]),main=DNAME,...)
+    DNAME <- paste(deparse(substitute(x)), "and", deparse(substitute(y)))
+    DT <- rbind(data.frame(x, groups = deparse(substitute(x))),
+                data.frame(y, groups = deparse(substitute(y))))
+    groups <- as.factor(DT[, 4])
+  } else {
+    DNAME <- deparse(substitute(x))
+    DT <- x
+    groups <- NULL
   }
-  else {
-    eafplot(as.matrix(x[,c(1,2)]),as.numeric(x[,3]),groups=NULL,main=DNAME,...)
-  }
+  eafplot.data.frame2(DT, groups = groups, ...)
 }
 
 
