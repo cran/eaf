@@ -28,6 +28,11 @@ read_double_data (const char *filename, double  **data_p,
 # define  __attribute__(x)  /* NOTHING */
 #endif
 
+#ifdef R_PACKAGE
+#include <R.h>
+#define errprintf error
+#define warnprintf warning
+#else
 void errprintf(const char * template,...) 
 /* enables the compiler to check the format string against the
    parameters */  __attribute__ ((format(printf, 1, 2)));
@@ -35,6 +40,6 @@ void errprintf(const char * template,...)
 void warnprintf(const char *template,...)
 /* enables the compiler to check the format string against the
    parameters */  __attribute__ ((format(printf, 1, 2)));
-
+#endif
 
 #endif

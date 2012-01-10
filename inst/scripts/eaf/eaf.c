@@ -42,9 +42,21 @@
 #define DEBUG 0
 #endif
 
+#ifdef R_PACKAGE
+#include <R.h>
+#define EAF_MALLOC(WHAT, NMEMB, SIZE)                           \
+    WHAT = malloc (NMEMB * SIZE);                               \
+    if (!WHAT) { error("malloc failed: %s", #WHAT); }
+#define fatalprintf(X) error(X)
+#else
 #define EAF_MALLOC(WHAT, NMEMB, SIZE)                           \
     WHAT = malloc (NMEMB * SIZE);                               \
     if (!WHAT) { perror (#WHAT ":"); exit (EXIT_FAILURE); }
+#define fatalprintf(X) \
+    do {                                                                       \
+        errprintf (X); exit (EXIT_FAILURE);                                    \
+    } while(0)
+#endif
 
 static int compare_x_asc (const void *p1, const void *p2)
 {
@@ -193,12 +205,11 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
     
     int ntotal = cumsize[nruns - 1]; /* total number of points in data */
     int *runtab;	
-    int *attained, nattained, *save_attained, save_nattained;
+    int *attained, nattained, *save_attained;
     int k, j, l;
 
     if (nobj != 2) {
-        errprintf ("this implementation only supports two dimensions.\n");
-        exit (EXIT_FAILURE);
+        fatalprintf ("this implementation only supports two dimensions.\n");
     }
 
     /* Access to the data is made via two arrays of pointers: ix, iy
@@ -290,7 +301,7 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
             do {
                 /* If there are repeated values along the y axis,
                    we need to remember where we are.  */
-                save_nattained = nattained;
+                /*save_nattained = nattained;*/
                 memcpy (save_attained, attained, nruns * sizeof(*attained));
 
                 do {

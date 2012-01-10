@@ -97,8 +97,8 @@ compute.eafdiff <- function(DATA, intervals = 1)
                 )
   # FIXME: Do this computation in C code.
   eafdiff <- list(left=NULL, right=NULL)
-  eafdiff$left <- unique(DIFF[ DIFF[,3] >= 1, ])
-  eafdiff$right <- unique(DIFF[ DIFF[,3] <= -1, ])
+  eafdiff$left <- unique(DIFF[ DIFF[,3] >= 1, , drop = FALSE])
+  eafdiff$right <- unique(DIFF[ DIFF[,3] <= -1, , drop = FALSE])
   eafdiff$right[,3] <- -eafdiff$right[,3]
   return(eafdiff)
 }
@@ -491,7 +491,7 @@ eafplot.default <-
            if (type == "area") {
              for (i in 1:length(col)) {
                if (full.eaf) {
-                 poli <- points.steps(eafdiff[eafdiff[,3] == i, c(1,2)])
+                 poli <- points.steps(eafdiff[eafdiff[,3] == i, c(1,2), drop = FALSE])
                  poli <- rbind(c(min(poli[,1]), extreme[2]), poli,
                                c(extreme[1], min(poli[,2])), c(extreme[1], extreme[2]))
                  polygon(poli[,1], poli[,2], border = NA, col = col[i])
@@ -501,8 +501,8 @@ eafplot.default <-
              }
            } else {
              ## The maximum value should also be painted.
-             eafdiff[eafdiff[,3] > length(col),3] <- length(col)
-             eafdiff <- eafdiff[order(eafdiff[,3], decreasing = FALSE),]
+             eafdiff[eafdiff[,3] > length(col), 3] <- length(col)
+             eafdiff <- eafdiff[order(eafdiff[,3], decreasing = FALSE), , drop=FALSE]
              points(eafdiff[,1], eafdiff[,2], col = col[eafdiff[,3]], type = "p", pch=20)
            }
          }

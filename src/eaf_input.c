@@ -59,6 +59,7 @@
 #undef objective_t_scanf_format
 #undef read_objective_t_data
 
+#ifndef R_PACKAGE
 /* From:
 
    Edition 0.10, last updated 2001-07-06, of `The GNU C Library
@@ -90,3 +91,4 @@ void warnprintf(const char *template,...)
     fprintf(stderr, "\n");
 
 }
+#endif

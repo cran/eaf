@@ -20,38 +20,39 @@ Plot the Empirical Attainment Function for two objectives
   EAF represents the curve where the fraction of attainable points is
   50\%.  In single objective optimization the function can be used to
   plot the profile of solution quality over time of a collection of runs
-  of a stochastic optmizer.  } \usage{ eafplot(x, ...)
+  of a stochastic optmizer.}
+
+\usage{%
+\method{eafplot}{default}(x, sets = NULL, groups = NULL,
+         percentiles = c(0,50,100),
+         attsurfs = NULL, 
+         xlab = "objective 1", ylab = "objective 2",
+         xlim = NULL, ylim = NULL,
+         log = "",
+         type = "point",
+         col = c("black", "darkgrey", "black", "grey40", "darkgrey"),
+         lty = c("dashed", "solid", "solid", "solid", "dashed"),
+         lwd = c(1.75),
+         pch = NA,
+         cex.pch = par("cex"),
+         las = par("las"),
+         legend.pos = "topright",
+         legend.txt = NULL,
+         extra.points = NULL, extra.legend = NULL,
+         extra.pch = c(4:25),
+         extra.lwd = 0.5,
+         extra.lty = "dashed",
+         extra.col = "black",
+         ymaximise = FALSE,
+         xaxis.side = 1, yaxis.side = 2,
+         ... )
 %
-eafplot.default(x, sets = NULL, groups = NULL,
-            percentiles = c(0,50,100),
-            attsurfs = NULL, 
-            xlab = "objective 1", ylab = "objective 2",
-            xlim = NULL, ylim = NULL,
-            log = "",
-            type = "point",
-            col = c("black", "darkgrey", "black", "grey40", "darkgrey"),
-            lty = c("dashed", "solid", "solid", "solid", "dashed"),
-            lwd = c(1.75),
-            pch = NA,
-            cex.pch = par("cex"),
-            las = par("las"),
-            legend.pos = "topright",
-            legend.txt = NULL,
-            extra.points = NULL, extra.legend = NULL,
-            extra.pch = c(4:25),
-            extra.lwd = 0.5,
-            extra.lty = "dashed",
-            extra.col = "black",
-            ymaximise = FALSE,
-            xaxis.side = 1, yaxis.side = 2,
-            ... )
+\method{eafplot}{data.frame}(x, y = NULL, ...)
 %
-eafplot.data.frame(x, y = NULL, ...)
+\method{eafplot}{formula}(x, data = data.frame(), groups = NULL, subset = NULL,
+         percentiles = NULL, include.extremes = FALSE, ...)
 %
-eafplot.formula(x, data = data.frame(), groups = NULL, subset = NULL,
-            percentiles = NULL, include.extremes = FALSE, ...)
-%
-eafplot.list(x, ...)
+\method{eafplot}{list}(x, ...)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{

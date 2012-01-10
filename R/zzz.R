@@ -15,11 +15,8 @@
 ## If present, .First.lib will be used if the NAMESPACE file is
 ## missing.  This is useful during development, thanks to C-c C-l in
 ## Emacs/ESS. It won't be used if a NAMESPACE file is present. 
-
 .First.lib <- function(lib, pkg) 
 {
-  cat(gettext("Note: you shouldn't be seeing this message unless\nyou are using a non-standard version of eaf"),
-      fill = TRUE)
   library.dynam("eaf", pkg, lib )
 }
 

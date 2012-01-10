@@ -33,12 +33,12 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     char newline[2];
     int ntotal;			/* the current element of (*datap) */
 
-    int column, row, line;
+    int column, line;
 
     int datasize;
     int sizessize;
 
-    int error = 0;
+    int errorcode = 0;
 
     if (filename == NULL) {
         instream = stdin;
@@ -64,7 +64,6 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     cumsizes = realloc (cumsizes, sizessize * sizeof(int));
     data = realloc (data, datasize * sizeof(objective_t));
 
-    row = 0;
     column = 0;
     line = 0;
 
@@ -80,7 +79,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
 
     if (retval == EOF) { /* faster than !feof() */
         warnprintf ("%s: file is empty.", filename);
-        error = READ_INPUT_FILE_EMPTY;
+        errorcode = READ_INPUT_FILE_EMPTY;
         goto read_data_finish;
     }
 
@@ -107,7 +106,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
                     errprintf ("%s: line %d column %d: "
                                "could not convert string `%s' to double", 
                                filename, line, column, buffer);
-                    error = ERROR_CONVERSION;
+                    errorcode = ERROR_CONVERSION;
                     goto read_data_finish;
                 }
 
@@ -135,13 +134,13 @@ read_objective_t_data (const char *filename, objective_t **data_p,
                 errprintf ("%s: line %d: input has dimension %d"
                            " while previous data has dimension %d",
                            filename,line, column, nobjs);
-                error = READ_INPUT_WRONG_INITIAL_DIM;
+                errorcode = READ_INPUT_WRONG_INITIAL_DIM;
                 goto read_data_finish;
             } else {
                 errprintf ("%s: line %d has different number of columns (%d)"
                            " from first row (%d)\n", 
                            filename, line, column, nobjs);
-                error = ERROR_COLUMNS;
+                errorcode = ERROR_COLUMNS;
                 goto read_data_finish;
  	    }
 	    cumsizes[nsets]++;
@@ -184,7 +183,7 @@ read_data_finish:
     if (instream != stdin) 
         fclose(instream);
 
-    return error;
+    return errorcode;
 }
 
 #undef PAGE_SIZE
