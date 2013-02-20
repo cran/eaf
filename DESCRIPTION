@@ -1,8 +1,8 @@
 Package: eaf
 Type: Package
 Title: Plots of the Empirical Attainment Function
-Version: 1.04
-Date: 2012-01-10
+Version: 1.05
+Date: 2013-02-20
 Maintainer: Manuel López-Ibáñez <manuel.lopez-ibanez@ulb.ac.be>
 Author: Carlos Fonseca, Luis Paquete, Thomas Stützle, Manuel
         López-Ibáñez and Marco Chiarandini.
@@ -16,6 +16,7 @@ URL: http://iridia.ulb.ac.be/~manuel/eaftools
 LazyLoad: true
 LazyData: true
 Encoding: UTF-8
-Packaged: 2012-01-10 17:02:49 UTC; manu
+Packaged: 2013-02-20 13:04:20 UTC; manu
+NeedsCompilation: yes
 Repository: CRAN
-Date/Publication: 2012-01-10 17:27:59
+Date/Publication: 2013-02-20 15:26:50

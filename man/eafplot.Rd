@@ -43,8 +43,9 @@ Plot the Empirical Attainment Function for two objectives
          extra.lwd = 0.5,
          extra.lty = "dashed",
          extra.col = "black",
-         ymaximise = FALSE,
-         xaxis.side = 1, yaxis.side = 2,
+         maximise = c(FALSE, FALSE),
+         xaxis.side = "below", yaxis.side = "left",
+         axes = TRUE,
          ... )
 %
 \method{eafplot}{data.frame}(x, y = NULL, ...)
@@ -109,16 +110,20 @@ a vector indicating which percentile should be plot. The default is to plot only
 \item{extra.legend}{is a character vector providing labels for the
   groups of points.
 }
-\item{ymaximise}{whether the y-axis denotes a maximisation problem. The
-  EAF is calculated accordingly, and the y-axis is reversed for plotting. 
-}
-  \item{xaxis.side}{ controls on which side that xaxis is drawn. See \code{\link{axis}}.
-}
-  \item{yaxis.side}{controls on which side that yaxis is drawn. See \code{\link{axis}}.
+\item{maximise}{whether the first and/or second objective correspond to
+  a maximisation problem.
 }
 
-\item{\dots}{Other graphical parameters to \code{\link{plot.default}}.
+  \item{xaxis.side}{controls on which side that xaxis is drawn. Valid
+    values are "below" and "above". See \code{\link{axis}}.
 }
+  \item{yaxis.side}{controls on which side that yaxis is drawn. Valid
+    values are "left" and "right". See \code{\link{axis}}.
+  }
+  \item{axes}{a logical value indicating whether both axes should be drawn
+    on the plot.}
+  \item{\dots}{Other graphical parameters to \code{\link{plot.default}}.
+  }
 }
 % \details{
 % %%  ~~ If necessary, more details than the description above ~~
@@ -152,6 +157,7 @@ tabucol<-subset(gcp2x2, alg!="TSinN1")
 tabucol$alg<-tabucol$alg[drop=TRUE]
 eafplot(time+best~run,data=tabucol,subset=tabucol$inst=="DSJC500.5")
 
+\dontrun{%These take time
 eafplot(time+best~run|inst,groups=alg,data=gcp2x2)
 eafplot(time+best~run|inst,groups=alg,data=gcp2x2,
 	percentiles=c(0,50,100),include.extremes=TRUE,
@@ -162,9 +168,11 @@ A1 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_d
 A2 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
 eafplot(A1, A2, percentiles = c(50))
 eafplot(list(A1 = A1, A2 = A2), percentiles = c(50))
+}
 \dontrun{dev.copy2pdf(file = "eaf.pdf", onefile = TRUE, width = 5, height = 4)}
 
 ## Using extra.points
+\dontrun{
 data(HybridGA)
 data(SPEA2relativeVanzyl)
 eafplot(SPEA2relativeVanzyl, percentiles = c(25, 50, 75), 
@@ -182,6 +190,7 @@ data(SPEA2minstoptimeRichmond)
 SPEA2minstoptimeRichmond[,2] <- SPEA2minstoptimeRichmond[,2] / 60
 eafplot (SPEA2minstoptimeRichmond, xlab = expression(C[E]),
          ylab = "Minimum idle time (minutes)",
-         las = 1, log = "y", ymaximise = TRUE, main = "SPEA2 (Richmond)")
+         las = 1, log = "y", maximise = c(FALSE, TRUE), main = "SPEA2 (Richmond)")
+}
 }
 \keyword{graphs}

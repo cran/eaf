@@ -21,8 +21,8 @@ Plots of the Empirical Attainment Function
 \tabular{ll}{
 Package: \tab eaf\cr
 Type: \tab Package\cr
-Version: \tab 0.9\cr
-Date: \tab 2011-02-12\cr
+Version: \tab 1.05 \cr
+Date: \tab 2013-02-20 \cr
 Depends: \tab R (>= 2.10.0)\cr
 Imports: \tab modeltools\cr
 Suggests: \tab \cr

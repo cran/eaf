@@ -42,22 +42,6 @@
 #define DEBUG 0
 #endif
 
-#ifdef R_PACKAGE
-#include <R.h>
-#define EAF_MALLOC(WHAT, NMEMB, SIZE)                           \
-    WHAT = malloc (NMEMB * SIZE);                               \
-    if (!WHAT) { error("malloc failed: %s", #WHAT); }
-#define fatalprintf(X) error(X)
-#else
-#define EAF_MALLOC(WHAT, NMEMB, SIZE)                           \
-    WHAT = malloc (NMEMB * SIZE);                               \
-    if (!WHAT) { perror (#WHAT ":"); exit (EXIT_FAILURE); }
-#define fatalprintf(X) \
-    do {                                                                       \
-        errprintf (X); exit (EXIT_FAILURE);                                    \
-    } while(0)
-#endif
-
 static int compare_x_asc (const void *p1, const void *p2)
 {
     objective_t x1 = **(objective_t **)p1;
@@ -85,10 +69,14 @@ eaf_t * eaf_create (int nobj, int nruns, int npoints)
     eaf->nobj = nobj;
     eaf->nruns = nruns;
     eaf->size = 0;
-    eaf->maxsize = 1 + npoints / 4; /* Maximum is npoints, but normally it
-                                       will be smaller, so at most two
-                                       realloc will occur.  */
+    /* Maximum is npoints, but normally it will be smaller, so at most
+       log2(2 * nruns) realloc will occur.  */
+    eaf->maxsize = 256 + npoints / (2 * nruns); 
     EAF_MALLOC (eaf->data, nobj * eaf->maxsize, sizeof(objective_t));
+    /* FIXME: attained requires too much memory for what it does. It
+       would be better to use "unsigned short" or "unsigned char".  Or
+       to separate this attained from the one in the main algorithm,
+       and use bool for this one.  */
     EAF_MALLOC (eaf->attained, nruns * eaf->maxsize, sizeof(int));
     return eaf;
 }
@@ -109,14 +97,14 @@ eaf_store_point (eaf_t * eaf, objective_t x, objective_t y,
     const int nobj = eaf->nobj;
 
     if (eaf->size == eaf->maxsize) {
-        assert (eaf->size < INT_MAX / 2);
+        eaf_assert (eaf->size < INT_MAX / 2);
         eaf->maxsize = eaf->maxsize * 2;
         eaf->attained = realloc (eaf->attained, 
                                  sizeof(int) * nruns * eaf->maxsize);
-        assert(eaf->attained);
+        eaf_assert(eaf->attained);
         eaf->data = realloc (eaf->data,
                              sizeof(objective_t) * nobj * eaf->maxsize);
-        assert(eaf->data);
+        eaf_assert(eaf->data);
     }
     pos = eaf->data + nobj * eaf->size;
     pos[0] = x;
@@ -155,10 +143,7 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
 
         fprintf (indic_file, (indic_file == diff_file) ? "\t" : "\n");
     } else if (diff_file) {
-        for (k = 0; k < nruns/2; k++) 
-            if (save_attained[k]) count1++;
-        for (k = nruns/2; k < nruns; k++)
-            if (save_attained[k]) count2++;
+        attained_left_right (save_attained, nruns/2, nruns, &count1, &count2);
     }
 
     if (diff_file)
@@ -320,7 +305,7 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
                 } while (y < ntotal && datay[y][1] == datay[y - 1][1]);
             } while (nattained >= level && y < ntotal);
 
-            assert (nattained < level);
+            eaf_assert (nattained < level);
 
             eaf_store_point (eaf[l], datax[x][0], datay[y-1][1],
                              save_attained);
@@ -335,3 +320,376 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
 
     return eaf;
 }
+
+
+#define PRINT_POINT(X,Y) fprintf(stderr, "%g\t%g\n", X, Y)
+#undef  PRINT_POINT
+#define PRINT_POINT(X,Y) (void)0
+
+/* Produce a polygon suitable to be plotted by the polygon function in R.  */
+eaf_polygon_t *
+eaf_compute_area_new (eaf_t **eaf, int nlevels)
+{
+/* FIXME: Don't add anything if color_0 == 0 */
+
+#define POLY_SIZE_CHECK()                                                      \
+    do { _poly_size_check--; eaf_assert(_poly_size_check >= 4);                \
+        eaf_assert(_poly_size_check % 2 == 0); _poly_size_check = 0; } while(0)
+#define eaf_point(A,K) (eaf[(A)]->data + (K) * nobj)
+#define push_point(X, Y)                                                       \
+    do {  vector_objective_push_back (&polygon->xy, (X));                      \
+        vector_objective_push_back (&polygon->xy, (Y));                        \
+        _poly_size_check++; PRINT_POINT(X,Y);                                  \
+    } while(0)
+    
+#define polygon_close()                                                        \
+    do {                                                                       \
+        vector_int_push_back (&polygon->col, color_0);                         \
+        push_point(objective_MIN, objective_MIN); POLY_SIZE_CHECK(); } while(0)
+
+    int _poly_size_check = 0;
+    eaf_polygon_t * polygon;
+    int *color;
+    int max_size = 0;
+    int nruns = eaf[0]->nruns;
+    int nobj = eaf[0]->nobj;
+
+    eaf_assert(nruns % 2 == 0);
+
+    for (int a = 0; a < nlevels; a++) {
+        if (max_size < eaf[a]->size)
+            max_size = eaf[a]->size;
+    }
+
+    EAF_MALLOC (color, sizeof(int), max_size);
+    EAF_MALLOC(polygon, sizeof(eaf_polygon_t), 1);
+    vector_objective_ctor (&polygon->xy, max_size);
+    vector_int_ctor (&polygon->col, max_size);
+ 
+    for (int b = 1; b < nlevels; b++) {
+        const int a = b - 1;
+        int eaf_a_size = eaf[a]->size;
+        int eaf_b_size = eaf[b]->size;
+        int ka;
+        /* Init colors.  */
+        for (ka = 0; ka < eaf_a_size; ka++) {
+            int *attained = eaf[a]->attained + ka * nruns;
+            int count_left, count_right;
+            attained_left_right (attained, nruns/2, nruns,
+                                 &count_left, &count_right);
+            color[ka] = count_left - count_right;
+        }
+        /* Find color transitions along the EAF level set.  */
+        objective_t topleft_y = objective_MAX;
+        int last_b = -1;
+        ka = 0;
+        while (true) {
+            const objective_t * pka = NULL;
+            const objective_t * pkb = NULL;
+            int kb = last_b + 1;
+            while (ka < eaf_a_size && kb < eaf_b_size) {
+                pka = eaf_point (a, ka);
+                pkb = eaf_point (b, kb);
+                if (pkb[0] != pka[0])
+                    break;
+                topleft_y = pkb[1];
+                last_b = kb;
+                if (pkb[1] == pka[1]) {
+                    /* Ignore points that exactly overlap.  */
+                    ka++; kb++;
+                } else {
+                    /* b intersects a above pka. */
+                    eaf_assert(pkb[1] > pka[1]);
+                    kb++;
+                    break;
+                }
+            }
+
+            /* Everything in A was overlapping. */
+            if (ka == eaf_a_size)
+                break;
+
+            objective_t prev_pka_y = topleft_y;
+            int color_0 = color[ka];
+            /* Print points and corners until we reach a different color. */
+            do {
+                pka = eaf_point (a, ka);
+                /* Find the point in B not above the current point in A. */
+                while (kb < eaf_b_size) {
+                    pkb = eaf_point (b, kb);
+                    eaf_assert(pkb[0] > pka[0]);
+                    if (pkb[1] <= pka[1])
+                        break;
+                    kb++;
+                }
+                eaf_assert(pka[1] < prev_pka_y);
+                push_point (pka[0], prev_pka_y);
+                push_point (pka[0], pka[1]);
+                prev_pka_y = pka[1];
+                ka++;
+
+                if (kb < eaf_b_size && ka < eaf_a_size) {
+                    const objective_t * pka_next = eaf_point (a, ka);
+                    eaf_assert (pkb[0] > pka[0]);
+                    eaf_assert (pkb[1] <= pka[1]);
+                    if (pkb[0] <= pka_next[0]) {
+                        /* If B intersects with A, stop here.  */
+                        eaf_assert(pkb[1] == pka[1] || pkb[0] == pka_next[0]);
+                        eaf_assert (prev_pka_y >= pkb[1]);
+                        break;
+                    }
+                }
+            } while (ka < eaf_a_size && color_0 != color[ka]);
+
+            /* pka is the point before changing color, but ka is the
+               position after.  */
+            if (ka == eaf_a_size) {/* We reached the end of eaf_a */
+                /* We don't have to go down the other side since eaf_a
+                   completely dominates eaf_b, so just start by the
+                   end. */
+                if (last_b == eaf_b_size - 1) {
+                    /* There is nothing on the other side, just create
+                       two points in the infinity. */
+                    push_point (objective_MAX, pka[1]);
+                    push_point (objective_MAX, topleft_y);
+                    eaf_assert(topleft_y > pka[1]);
+                } else {
+                    kb = eaf_b_size - 1;
+                    pkb = eaf_point(b, kb);
+                    eaf_assert (pkb[1] >= pka[1]);
+                    eaf_assert (pkb[0] > pka[0]);
+                    if (pkb[1] > pka[1]) {
+                        /* Create two points in the infinity.  */
+                        push_point (objective_MAX, pka[1]);
+                        push_point (objective_MAX, pkb[1]);
+                        eaf_assert (pkb[1] <= topleft_y);
+                    }
+                    objective_t prev_pkb_x = pkb[0];
+                    push_point (pkb[0], pkb[1]);
+                    kb--;
+                    while (kb > last_b) {
+                        pkb = eaf_point(b, kb);
+                        eaf_assert (pkb[0] > pka[0]);
+                        push_point (prev_pkb_x, pkb[1]);
+                        push_point (pkb[0], pkb[1]);
+                        prev_pkb_x = pkb[0];
+                        kb--;
+                    }
+                    push_point (pkb[0], topleft_y);
+                    eaf_assert (topleft_y > pkb[1]);
+                }
+                /* last_b = eaf_b_size - 1; */
+                polygon_close(); /* DONE */
+                break; /* Really done! */
+            } else {
+                if (kb == eaf_b_size) { 
+                    eaf_assert (pka[1] < topleft_y);
+                    /* There is nothing on the other side, just create
+                       two points in the infinity. */
+                    push_point (objective_MAX, pka[1]);
+                    push_point (objective_MAX, topleft_y);
+                    last_b = eaf_b_size - 1;
+                } else {
+                    eaf_assert (kb < eaf_b_size);
+                    pkb = eaf_point (b, kb);
+                    eaf_assert (pkb[1] <= pka[1]);
+                    eaf_assert (pkb[0] != pka[0]);
+                    /* If pkb and pka are in the same horizontal, pkb
+                       does not affect the next polygon. Otherwise, it
+                       does. */
+                    int save_last_b = (pkb[1] == pka[1]) ? kb : kb - 1;;
+                    /* Now print in reverse.  */
+                    objective_t prev_pkb_x = pkb[0];
+                    push_point (pkb[0], pka[1]);
+                    kb--;
+                    while (kb > last_b) {
+                        pkb = eaf_point (b, kb);
+                        eaf_assert (pkb[0] != pka[0]);
+                        push_point (prev_pkb_x, pkb[1]);
+                        push_point (pkb[0], pkb[1]);
+                        prev_pkb_x = pkb[0];
+                        kb--;
+                    }
+                    eaf_assert (topleft_y > pkb[1]);
+                    push_point (pkb[0], topleft_y);
+                    last_b = save_last_b;
+                }
+                polygon_close(); /* DONE */
+                eaf_assert(topleft_y >= pka[1]);
+                topleft_y = pka[1];
+            }
+        }
+    }
+
+    free (color);
+    return polygon;
+}
+
+/* FIXME: This version does not care about intersections, which is
+   much siimpler, but it produces artifacts when plotted with the
+   polygon function in R.  */
+eaf_polygon_t *
+eaf_compute_area_old (eaf_t **eaf, int nlevels)
+{
+    int _poly_size_check = 0;
+    eaf_polygon_t * polygon;
+
+    int *color;
+    int max_size = 0;
+    int nruns = eaf[0]->nruns;
+    int nobj = eaf[0]->nobj;
+
+    for (int a = 0; a < nlevels; a++) {
+        if (max_size < eaf[a]->size)
+            max_size = eaf[a]->size;
+    }
+
+    eaf_assert(nruns % 2 == 0);
+
+    EAF_MALLOC (color, sizeof(int), max_size);
+    EAF_MALLOC(polygon, sizeof(eaf_polygon_t), 1);
+    vector_objective_ctor (&polygon->xy, max_size);
+    vector_int_ctor (&polygon->col, max_size);
+ 
+    for (int b = 1; b < nlevels; b++) {
+        const int a = b - 1;
+        int eaf_a_size = eaf[a]->size;
+        int eaf_b_size = eaf[a + 1]->size;
+        int ka;
+        /* Init colors.  */
+        for (ka = 0; ka < eaf_a_size; ka++) {
+            int *attained = eaf[a]->attained + ka * nruns;
+            int count_left, count_right;
+            attained_left_right (attained, nruns/2, nruns,
+                                 &count_left, &count_right);
+            color[ka] = count_left - count_right;
+        }
+        /* Find color transitions along the EAF level set.  */
+        int last_b = -1;
+        objective_t topleft_y = objective_MAX;
+        ka = 0;
+        while (ka < eaf_a_size) {
+            objective_t prev_pka_y = topleft_y;
+            const objective_t * pka;
+
+            /* Print points and corners until we reach a different color. */
+            int color_0 = color[ka];
+            do {
+                pka = eaf_point (a, ka);
+                push_point (pka[0], prev_pka_y);
+                push_point (pka[0], pka[1]);
+                prev_pka_y = pka[1];
+                ka++;
+            } while (ka < eaf_a_size && color_0 == color[ka]);
+
+            /* pka is the point before changing color, but ka is the
+               position after.  */
+            if (ka == eaf_a_size) {/* We reached the end of eaf_a */
+                /* We don't have to go down the other side since eaf_a
+                   completely dominates eaf_b, so just start by the
+                   end. */
+                int kb = eaf_b_size - 1;
+
+                if (last_b == kb) {
+                    /* There is nothing on the other side, just create
+                       two points in the infinity. */
+                    push_point (objective_MAX, pka[1]);
+                    push_point (objective_MAX, topleft_y);
+                } else {
+                    const objective_t * pkb = eaf_point(a + 1, kb);
+                    eaf_assert (pkb[1] >= pka[1]);
+                    if (pkb[1] > pka[1]) {
+                        /* Create two points in the infinity.  */
+                        push_point (objective_MAX, pka[1]);
+                        push_point (objective_MAX, pkb[1]);
+                    }
+                    objective_t prev_pkb_x = pkb[0];
+                    push_point (pkb[0], pkb[1]);
+                    kb--;
+                    while (kb > last_b) {
+                        pkb = eaf_point(a + 1, kb);
+                        push_point (prev_pkb_x, pkb[1]);
+                        push_point (pkb[0], pkb[1]);
+                        prev_pkb_x = pkb[0];
+                        kb--;
+                    }
+                    push_point (pkb[0], topleft_y);
+                    last_b = eaf_b_size - 1;
+                }
+                polygon_close(); /* DONE */
+            } else {
+                int kb = last_b + 1;
+                /* Different color, go down by the other side until
+                   reaching this point. */
+                if (kb == eaf_b_size) { 
+                    /* There is nothing on the other side, just create
+                       two points in the infinity. */
+                    push_point (objective_MAX, pka[1]);
+                    push_point (objective_MAX, topleft_y);
+                    polygon_close(); /* DONE */
+                } else {
+                    const objective_t * pkb;
+                    do {
+                        pkb = eaf_point (b, kb);
+                        if (pkb[1] <= pka[1]) 
+                            break;
+                        kb++;
+                    } while (kb < eaf_b_size);
+                    int save_last_b = kb - 1;
+                    if (kb == eaf_b_size) {
+                        /* There is nothing on the other side, just create
+                           two points in the infinity. */
+                        push_point (objective_MAX, pka[1]);
+                        push_point (objective_MAX, pkb[1]);
+                    } else {/* pkb_y <= pka_y */
+                        objective_t prev_pkb_x = pkb[0];
+                        push_point (pkb[0], pka[1]);
+                        /* Now print in reverse.  */
+                        kb--;
+                        while (kb > last_b) {
+                            pkb = eaf_point (b, kb);
+                            push_point (prev_pkb_x, pkb[1]);
+                            push_point (pkb[0], pkb[1]);
+                            prev_pkb_x = pkb[0];
+                            kb--;
+                        } 
+                        push_point (pkb[0], topleft_y);
+                    }
+                    polygon_close(); /* DONE */
+                    last_b = save_last_b;
+                }
+            }
+            topleft_y = pka[1];
+        }
+    }
+
+    free (color);
+    return polygon;
+}
+#undef eaf_point
+#undef push_point
+#undef polygon_close
+#undef PRINT_POINT
+#undef POLY_SIZE_CHECK
+
+void
+eaf_print_polygon (FILE *stream, eaf_t **eaf, int nlevels)
+{
+    eaf_polygon_t *p = eaf_compute_area (eaf, nlevels);
+    
+    for(size_t i = 0; i < vector_objective_size(&p->xy); i += 2) {
+        fprintf(stream, point_printf_format "\t" point_printf_format "\n", 
+                vector_objective_at(&p->xy, i),
+                vector_objective_at(&p->xy, i + 1));
+    }
+
+    fprintf (stream, "# col =");
+    for (size_t k = 0; k < vector_int_size (&p->col); k++)
+        fprintf (stream, " %d", vector_int_at(&p->col, k));
+    fprintf (stream, "\n");
+
+    vector_objective_dtor (&p->xy);
+    vector_int_dtor (&p->col);
+    free(p);
+}
+

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafplot.pl  ($Revision: 191 $)
+# eafplot.pl  ($Revision: 219 $)
 #
 #---------------------------------------------------------------------
 #
@@ -75,21 +75,51 @@ use warnings FATAL => 'all';
 use diagnostics;
 use Carp;
 use File::Basename;
+use Getopt::Long qw(:config pass_through);;
+
+my $copyright ='
+Copyright (C) 2012  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+There is NO WARRANTY, to the extent permitted by law.
+';
 
 my $progname = basename($0);
-my $version = ' $Revision: 191 $ ';
+my $version = ' $Revision: 219 $ ';
 
-my $ps2epsfilter = undef;
-$ps2epsfilter = "ps2eps";
-&requiredprog($ps2epsfilter);
+my $Rexe = "R";
+requiredprog($Rexe);
+
 
 &usage(1) if (@ARGV == 0);
+
+my $flag_single_plot = 0;
+my $legend;
+my $output_file;
+my $flag_verbose = 0;
+my $flag_eps = 0;
+my $label_obj1 = "objective 1";
+my $label_obj2 = "objective 2";
+
+GetOptions ('eps' => \$flag_eps,
+            'single' => \$flag_single_plot,
+            'output|o=s'   => \$output_file,
+            'legend=s' => \$legend,
+            'obj1:s'   => \$label_obj1,
+            'obj2:s'   => \$label_obj2,
+            'verbose|v' => \$flag_verbose);
+
+sub version {
+    print "$progname: version $version\n";
+    print $copyright;
+    exit (0);
+}
 
 sub usage {
     my $exitcode = shift;
     print <<"EOF";
 $progname version $version
-
+$copyright
 Usage: $progname [OPTIONS] FILES
 
   Plot the best/median/worst attainment surfaces for a set of input
@@ -117,6 +147,8 @@ Usage: $progname [OPTIONS] FILES
                      (labels can be R expressions, 
                       e.g., --obj1="expression(pi)")
 
+   , --legend=STRING A legend like: '"Algorithm A", "Algorithm B"'
+
    , --legendpos={top,bottom}{left,right}  position of the legend;
 
      --xlim=REAL,REAL  limits of x-axis;
@@ -125,6 +157,13 @@ Usage: $progname [OPTIONS] FILES
      --area         plot the area dominated by the attainment surfaces instead
                     of lines.
 
+ -o, --output=FILE  output file.
+
+     --[no]single   generate a single plot.
+
+     --eps          generate EPS file (default is PDF).
+
+    --no-eaf        just plot the points directly.
 EOF
     exit $exitcode;
 }
@@ -134,62 +173,44 @@ my $commandline = &format_commandline ();
 
 my @files = ();
 my $percentiles;
-my $verbose_flag = 1;
 my $flag_ymaximise = 0;
 my $flag_area = 0;
 my $flag_axislog = "";
 my $extra_points = "NULL";
 my $extra_labels = "NULL";
-my $label_obj1 = "objective 1";
-my $label_obj2 = "objective 2";
 my $IQR_flag = 0;
 my $legendpos = "topright";
 my $xlim = "NULL";
 my $ylim = "NULL";
 my $do_eaf = 1;
 
+#FIXME: Move everything to GetOpt above.
 ## Handle parameters
 while (@ARGV) {
     my $argv = shift @ARGV;
 
-    if ($argv =~ /^-v$/ or $argv =~ /^--verbose$/) {
-        $verbose_flag = "-v";
-    }
-    elsif ($argv =~ /^--help/ or $argv =~ /^-h/) {
+    if ($argv =~ /^--help/ or $argv =~ /^-h/) {
         &usage(0);
-    }
-    elsif ($argv =~ /^--version/) {
-        print "$progname: version $version\n";
-        print <<'EOF';
-Copyright (C) 2010  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
-This is free software.  You may redistribute copies of it under the terms of
-the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-There is NO WARRANTY, to the extent permitted by law.
-EOF
-        exit (0);
-    }
-    elsif ($argv =~ /--ymaximise/ or $argv =~ /-ymaximise/
-        # For backwards compatibility
-        or $argv =~ /--stoptime/ or $argv =~ /-stoptime/) {
+    } elsif ($argv =~ /^--version/) {
+        &version();
+    } elsif ($argv =~ /--ymaximise/ or $argv =~ /-ymaximise/
+             # For backwards compatibility
+             or $argv =~ /--stoptime/ or $argv =~ /-stoptime/) {
         print "$progname: maximising y-axis\n";
         $flag_ymaximise = 1;
-    }
-    elsif ($argv =~ /--area/) {
+    } elsif ($argv =~ /^--area/) {
         $flag_area = 1;
-    }
-    elsif ($argv =~ /^-b$/ or $argv =~ /^--best$/i) {
+    } elsif ($argv =~ /^-b$/ or $argv =~ /^--best$/i) {
         $percentiles .= ", " if (defined($percentiles));
         $percentiles .= "0";
-    }
-    elsif ($argv =~ /^-m$/ or $argv =~ /^--median$/i) {
+    } elsif ($argv =~ /^-m$/ or $argv =~ /^--median$/i) {
         $percentiles .= ", " if (defined($percentiles));
         $percentiles .= "50";
-    }
-    elsif ($argv =~ /^-w$/ or $argv =~ /^--worst$/i) {
+    } elsif ($argv =~ /^-w$/ or $argv =~ /^--worst$/i) {
         $percentiles .= ", " if (defined($percentiles));
         $percentiles .= "100";
     }
-    elsif ($argv =~ /-I/ or $argv =~ /--iqr/i) {
+    elsif ($argv =~ /^-I/ or $argv =~ /^--iqr/i) {
         $IQR_flag = 1;
         $percentiles .= ", " if (defined($percentiles));
         $percentiles .= "25, 50, 75";
@@ -219,14 +240,6 @@ EOF
             $extra_labels  = ($extra_labels eq "NULL") 
             ?  "\"$arg\"" : $extra_labels . ", \"$arg\"";
         }
-    } elsif ($argv =~ /^--obj1=/
-           or $argv =~ /^--obj1$/) {
-        $label_obj1 = &get_arg ($argv);
-
-    } elsif ($argv =~ /^--obj2=/
-           or $argv =~ /^--obj2$/) {
-        $label_obj2 =  &get_arg ($argv);
-
     } elsif ($argv =~ /^--legendpos=/
            or $argv =~ /^--legendpos$/) {
         my $arg = &get_arg ($argv);
@@ -244,14 +257,14 @@ EOF
            or $argv =~ /^--ylim$/) {
         my $arg = &get_arg ($argv);
         $ylim  = "c($arg)" if ($arg);
-    }
-    elsif ($argv =~ /^--/ or $argv =~ /^-/) {
+    } elsif ($argv =~ /^--/ or $argv =~ /^-/) {
         print "$progname: unknown option $argv\n";
         &usage(1);
     } else {
         push (@files, $argv);
     }
 }
+
 
 @files = &unique(@files);
 die "$progname: error: no input files given\n" unless (@files);
@@ -262,9 +275,13 @@ if (defined($percentiles) and not $do_eaf) {
 }
 
 
+my $ps2epsfilter = undef;
+$ps2epsfilter = "ps2eps";
+requiredprog ($ps2epsfilter) if ($flag_eps);
 my $filter = "";
-$filter = "|$ps2epsfilter -s b0 -q -l -B -O -P > "
-if (defined($ps2epsfilter) and -x $ps2epsfilter);
+$filter = "|$ps2epsfilter -s b0 -q -l -B -O -P > " if ($flag_eps
+                                                       and defined($ps2epsfilter)
+                                                       and -x $ps2epsfilter);
 
 if ($extra_labels eq "NULL") {
     $extra_labels = $extra_points;
@@ -272,73 +289,21 @@ if ($extra_labels eq "NULL") {
 
 $percentiles = "NULL" unless ($do_eaf);
 # Default is best, median, worst.
-$percentiles = "0, 50, 100" unless (defined($percentiles));
+unless(defined($percentiles)) {
+    $percentiles = ($flag_single_plot) ? "50" : "0, 50, 100";
+}
 
 $label_obj1 = parse_expression ($label_obj1);
 $label_obj2 = parse_expression ($label_obj2);
 
-my $Rfile = "$$.R";
-open(R, ">$Rfile") or die "$progname: error: can't open $Rfile: $!\n";
-print R <<"EOFR";
-#!/usr/bin/r --vanilla
-# 
-# R script to plot attainment surfaces
-#
-# This script is executable if you have littler installed. [*]
-# [*] http://code.google.com/p/littler/
-#
-# Created by $commandline
-#
-# $version
-#
-
-library(eaf)
-
-filter <- "$filter"
-
-file.extra <- list(${extra_points})
-extra.legend <- c(${extra_labels})
-
-ymaximise <- $flag_ymaximise
-legend.pos <- "$legendpos"
-log <- "$flag_axislog"
-Xlim <- $xlim
-Ylim <- $ylim
-eaf.type <- ifelse(${flag_area}, "area", "point")
-xlab <- $label_obj1
-ylab <- $label_obj2
-percentiles <- c($percentiles)
-percentiles <- if (is.null(percentiles)) percentiles else sort(percentiles)
-do.eaf <- as.logical($do_eaf)
-
-EOFR
-
-print R <<'EOFR';
-if (eaf.type == "area") {
-  col <- colnames
-  lty <- c("solid", "dashed", "solid")
-  pch <- NA
-} else {
-  col <- c("black", "darkgrey", "black", "grey40", "darkgrey")
-  lty <- c("dashed", "solid", "solid", "solid", "dashed")
-  pch <- NA
-  #lty <- c("blank")
-  #pch <- c(20,21,22,23,4,5)
-}
-
-epsfile <- NULL
-title   <- NULL
-eaffiles <- list()
-data <- NULL
-attsurfs <- NULL
-xlim <- NULL
-ylim <- NULL
-
-EOFR
 
 my $num = 0;
 my $eaffiles = "";
+my $outfile;
 
+my @epsfiles;
+my @titles;
+my @eaffiles;
 foreach my $inpfile (@files) {
     unless (-r $inpfile) {
 	die "$progname: warning: $inpfile: cannot read file.\n";
@@ -375,34 +340,91 @@ foreach my $inpfile (@files) {
         $file_eps = "$inpdir/${basefile}";
         $eaffiles = "list(\"" . join ("\", \"", @extrafiles) . "\")" ;
     }
-    # Include this file in the R script.
-    print R <<"EOFR";
+    push @epsfiles, $file_eps;
+    push @titles, $inpfile;
+    push @eaffiles, $eaffiles;
+    $outfile = $file_eps
+}
 
-k <- $num
-epsfile[k] <- paste(filter, "$file_eps", sep="")
-title[k]   <- "$inpfile"
-eaffiles[[k]] <- $eaffiles
+unless (defined($output_file) and $output_file) {
+    $output_file = $outfile;
+}
+
+my $str_epsfiles = asRlist(@epsfiles);
+my $str_titles = asRlist(@titles);
+my $str_eaffiles = join(', ', @eaffiles);
+$legend = $str_titles unless(defined($legend));
+
+my $Rfile = "$$.R";
+open(R, ">$Rfile") or die "$progname: error: can't open $Rfile: $!\n";
+print R <<"EOFR";
+#!/usr/bin/r --vanilla
+# 
+# R script to plot attainment surfaces
+#
+# This script is executable if you have littler installed. [*]
+# [*] http://code.google.com/p/littler/
+#
+# Created by $commandline
+#
+# $version
+#
+
+library(eaf)
+
+filter <- "$filter"
+
+file.extra <- list(${extra_points})
+extra.legend <- c(${extra_labels})
+
+ymaximise <- $flag_ymaximise
+legend.txt <- c($legend)
+legend.pos <- "$legendpos"
+log <- "$flag_axislog"
+Xlim <- $xlim
+Ylim <- $ylim
+eaf.type <- ifelse(${flag_area}, "area", "point")
+xlab <- $label_obj1
+ylab <- $label_obj2
+percentiles <- c($percentiles)
+percentiles <- if (is.null(percentiles)) percentiles else sort(percentiles)
+do.eaf <- as.logical($do_eaf)
+single.plot <- as.logical($flag_single_plot)
+output.file  <- "$output_file"
+flag.eps <- as.logical(${flag_eps})
+epsfiles <- c(${str_epsfiles})
+titles   <- c(${str_titles})
+eaffiles <- list(${str_eaffiles})
+
 EOFR
 
-# FIXME: Use a loop in R, the loop in Perl should just fill variables.
-
-    print R <<'EOFR';
-data[[k]] <- attsurfs[[k]] <- NULL
-if (do.eaf) {
-  data[[k]] <- read.data.sets (eaffiles[[k]])
-  xlim <- range (xlim, data[[k]][,1])
-  ylim <- range (ylim, data[[k]][,2])
+print R <<'EOFR';
+if (eaf.type == "area") {
+  col <- colnames
+  lty <- c("solid", "dashed", "solid")
+  pch <- NA
 } else {
-  attsurfs[[k]] <- lapply(eaffiles[[k]], read.data.sets)
-  xlim <- range (xlim, do.call("rbind", attsurfs[[k]])[,1])
-  ylim <- range (ylim, do.call("rbind", attsurfs[[k]])[,2])
+  col <- c("black", "darkgrey", "black", "grey40", "darkgrey")
+  lty <- c("dashed", "solid", "solid", "solid", "dashed")
+  pch <- NA
+  #lty <- c("blank")
+  #pch <- c(20,21,22,23,4,5)
 }
 
-EOFR
+data <- NULL
+attsurfs <- NULL
+xlim <- NULL
+ylim <- NULL
 
+if (do.eaf) {
+  data <- lapply (eaffiles, read.data.sets)
+  xlim <- range(xlim, sapply(data, function(x) x[, 1]))
+  ylim <- range(ylim, sapply(data, function(x) x[, 2]))
+} else {
+  attsurfs <- lapply(eaffiles, function(x) lapply(x, read.data.sets))
+  xlim <- range(xlim, sapply(attsurfs, function(x) do.call("rbind", x)[,1]))
+  ylim <- range(ylim, sapply(attsurfs, function(x) do.call("rbind", x)[,2]))
 }
-
-print R<<'EOFR';
 
 if (is.null (file.extra[[1]])) {
       extra.points <-  NULL
@@ -425,39 +447,61 @@ cat(sprintf("ylim = c(%s, %s)\n", ylim[1], ylim[2]))
 if (!is.null(Xlim)) xlim <- Xlim
 if (!is.null(Ylim)) ylim <- Ylim
 
-EOFR
-
-# FIXME: Use a loop in R, the loop in Perl should just fill variables.
-for (my $k = 1; $k <= $num; $k++) {
-    print R<<"EOFR";
-
-eps.file <- paste(epsfile[$k],".eps", sep='')
-eps.title <- title[$k]
-postscript(eps.file, title=eps.title,
-           paper = "special", horizontal=F, onefile=F,
-           width=4.5, height=4.5, 
-           ##             width=5, height=5, 
-           family = "Helvetica" ## "Times"
-          )
-
-eafplot.default (data[[$k]][,1:2], sets = data[[$k]][,3],
-         attsurfs = attsurfs[[$k]], percentiles = percentiles,
-         xlab = xlab, ylab = ylab, las = 0, log = log,
-         type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
-         extra.points=extra.points, xlim=xlim, ylim=ylim,
-         legend.pos = legend.pos, extra.legend = extra.legend)
-
-dev.null <- dev.off()
-cat (paste("Plot: ",eps.file,"\\n", sep=''))
-
-EOFR
+if (single.plot) {
+  output.title <- output.file
+  if (flag.eps) {
+    output.file <- paste(filter, output.file, ".eps", sep='')
+    postscript(output.file, title = output.title,
+               paper = "special", horizontal=F, onefile=F,
+               width=4.5, height=4.5, 
+               family = "Helvetica" ## "Times"
+               )
+  } else {
+    output.file <- paste(filter, output.file, ".pdf", sep='')
+    pdf(output.file, title = output.title,
+        width = 4.5, height = 4.5, family = "Helvetica")
+  }
+  eafplot (data, attsurfs = attsurfs, percentiles = percentiles,
+           xlab = xlab, ylab = ylab, las = 0, log = log,
+           type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
+           extra.points=extra.points, xlim=xlim, ylim=ylim,
+           legend.pos = legend.pos, extra.legend = extra.legend,
+           legend.txt = legend.txt)
+  dev.null <- dev.off()
+  cat ("Plot: ", output.file, "\n", sep='')
+} else {
+  for (k in seq_along(epsfiles)) {
+    output.title <- titles[k]
+    if (flag.eps) {
+      output.file <- paste(filter, epsfiles[k], ".eps", sep='')
+      postscript(output.file, title = output.title,
+                 paper = "special", horizontal=F, onefile=F,
+                 width=4.5, height=4.5, 
+                 family = "Helvetica" ## "Times"
+                 )
+    } else {
+      output.file <- paste(filter, epsfiles[k], ".pdf", sep='')
+      pdf(output.file, title = output.title,
+          width=4.5, height=4.5,
+          family = "Helvetica")
+    }
+    eafplot.default (data[[k]][,1:2], sets = data[[k]][,3],
+                     attsurfs = attsurfs[[k]], percentiles = percentiles,
+                     xlab = xlab, ylab = ylab, las = 0, log = log,
+                     type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
+                     extra.points=extra.points, xlim=xlim, ylim=ylim,
+                     legend.pos = legend.pos, extra.legend = extra.legend)
+    dev.null <- dev.off()
+    cat ("Plot: ", output.file, "\n", sep='')
+  }
 }
 
-
+EOFR
 close R;
-&execute_verbose ("R --quiet --vanilla --slave <$Rfile");
-($verbose_flag) 
-? print "\n$progname: generated R script: $Rfile\n" 
+&execute_verbose ("$Rexe --quiet --vanilla --slave <$Rfile");
+
+($flag_verbose) 
+? print "$progname: generated R script: $Rfile\n" 
 : unlink($Rfile);
 
 exit 0;
@@ -555,7 +599,7 @@ sub runcmd {
 sub execute {
     my $command = shift;
 
-    if ($verbose_flag) {
+    if ($flag_verbose) {
         &execute_verbose ("$command");
     } else {
         `$command`;
@@ -566,7 +610,7 @@ sub execute_verbose {
     unless (@_) {
         croak "$progname: execute_verbose passed no arguments.\n";
     }
-    print "\n@_\n";
+    print "\n@_\n" if ($flag_verbose);
     my $fh = _pipe(@_);
     my @output;
     while (<$fh>) {
@@ -603,3 +647,6 @@ sub _pipe {
     return *SAFE_READ;
 }
 
+sub asRlist {
+    return "\"". join("\", \"", @_) . "\"";
+}

@@ -1,6 +1,5 @@
 importFrom("modeltools", "ModelEnvFormula")
 #importFrom("lattice","xyplot") # Maybe in the future
-
 useDynLib(eaf,compute_eaf_C,.registration = TRUE)
 export(eafplot,eafplot.formula,eafplot.list,eafplot.data.frame,eafplot.default)
 export(read.data.sets)

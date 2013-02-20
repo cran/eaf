@@ -29,23 +29,56 @@
  ----------------------------------------------------------------------
 
 *************************************************************************/
-#include <stdio.h>
+#ifdef R_PACKAGE
+#include <R.h>
+#define eaf_assert(EXP)                                                       \
+    do { if (!(EXP)) { error("eaf package: error: assertion failed: '%s'",    \
+                             #EXP); }} while(0)
+
+#define EAF_MALLOC(WHAT, NMEMB, SIZE)                                          \
+    do { WHAT = malloc (NMEMB * SIZE);                                         \
+        if (!WHAT) {                                                           \
+            error(__FILE__ ": %s = malloc (%u * %u) failed",                   \
+                  #WHAT, (unsigned int) NMEMB, (unsigned int) SIZE); }         \
+    } while (0)
+#define fatalprintf(X) error(X)
+#else
 #include <assert.h>
+#define eaf_assert(X) assert(X)
+
+#define EAF_MALLOC(WHAT, NMEMB, SIZE)                                          \
+    do { WHAT = malloc (NMEMB * SIZE);                                         \
+        if (!WHAT) { perror (__FILE__ ": " #WHAT ); exit (EXIT_FAILURE); }     \
+    } while(0)
+#define fatalprintf(X) \
+    do { errprintf (X); exit (EXIT_FAILURE); } while(0)
+#endif
+
 #include "eaf_io.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <float.h>
+#include <math.h>
 
 /* If the input are always integers, adjusting this type will
    certainly improve performance.  */
 #define objective_t double
 #if objective_t == double
+# define objective_MAX INFINITY
+# define objective_MIN -INFINITY
+
 # define objective_t_scanf_format "%lf"
 # define read_objective_t_data read_double_data
 #else
+# define objective_MAX INT_MAX
+# define objective_MIN INT_MIN
 # define objective_t_scanf_format "%d"
 # define read_objective_t_data read_int_data
 #endif
 
 typedef struct {
-    int nobj;
+    int nobj; /* FIXME: there is no point to store this here.  */
     int nruns;
     int size;
     int maxsize;
@@ -64,12 +97,12 @@ eaf_print (eaf_t *,
 void eaf_delete (eaf_t * eaf);
 
 eaf_t **
-attsurf (const objective_t *data,    /* the objective vectors               */
-         int nobj,                   /* the number of objectives            */
-         const int *cumsize,         /* the cumulative sizes of the runs    */
-         int nruns,		     /* the number of runs                  */
-         const int *attlevel,        /* the desired attainment levels       */
-         int nlevels                 /* the number of att levels            */
+attsurf (const objective_t *data,    /* the objective vectors            */
+         int nobj,                   /* the number of objectives         */
+         const int *cumsize,         /* the cumulative sizes of the runs */
+         int nruns,		     /* the number of runs               */
+         const int *attlevel,        /* the desired attainment levels    */
+         int nlevels                 /* the number of att levels         */
     );
 
 static inline void
@@ -89,7 +122,7 @@ attained_left_right (const int *attained, int division, int total,
     int count_r = 0;
     int k;
 
-    assert (division < total);
+    eaf_assert (division < total);
 
     for (k = 0; k < division; k++)
         if (attained[k]) count_l++;
@@ -113,4 +146,21 @@ static inline int percentile2level (int p, int n)
     return level;
 }
 
+
+
+#define cvector_assert(X) eaf_assert(X)
+#include "cvector.h"
+vector_define(vector_objective, objective_t)
+vector_define(vector_int, int)
+
+typedef struct {
+    vector_objective xy;
+    vector_int col;
+} eaf_polygon_t;
+
+#define eaf_compute_area eaf_compute_area_new
+
+eaf_polygon_t *eaf_compute_area_new (eaf_t **eaf, int nlevels);
+eaf_polygon_t *eaf_compute_area_old (eaf_t **eaf, int nlevels);
+void eaf_print_polygon (FILE* stream, eaf_t **eaf, int nlevels);
 

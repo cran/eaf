@@ -40,11 +40,16 @@ read.data.sets(file, col.names)
 \author{
   Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
 }
-\note{
+\note{%
   There are several examples of data sets in \code{file.path(system.file(package="eaf"),"extdata")}. 
 }
 
-%% ~Make other sections like Warning with \section{Warning }{....} ~
+\section{Warning}{
+  A know limitation is that the input file must use newline characters
+  native to the host system, otherwise they will be, possibly silently,
+  misinterpreted. In GNU/Linux the program \code{dos2unix} may be used
+  to fix newline characters.
+}
 
 \seealso{
 \code{\link{read.table}}, \code{\link{eafplot}}, \code{\link{eafdiffplot}}

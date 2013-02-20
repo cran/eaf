@@ -96,6 +96,8 @@ static void version(void)
 "\n"        );
 }
 
+/* FIXME: This function should be called eaf_print, and the function
+   that prints each level should be attsurf_print. */
 void attsurf_print (eaf_t **eaf, int nlevels,
                     FILE *coord_file, FILE *indic_file, FILE *diff_file)
 {
@@ -300,7 +302,8 @@ int main(int argc, char *argv[])
         indic_filename = coord_filename;
     }
     /* If a different filename as for --output was given, open it.  */
-    if (indic_filename && strcmp (indic_filename, coord_filename)) {
+    if (indic_filename
+        && (!coord_filename || strcmp (indic_filename, coord_filename))) {
         indic_file = fopen (indic_filename, "w");
         if (NULL == indic_file) {
             errprintf ("%s: %s", indic_filename, strerror (errno));
@@ -316,8 +319,9 @@ int main(int argc, char *argv[])
     }
     /* If a different filename as for --output and --indices was
        given, open it.  */
-    if (diff_filename && strcmp (diff_filename, coord_filename) 
-        && strcmp (diff_filename, indic_filename)) {
+    if (diff_filename
+        && (!coord_filename || strcmp (diff_filename, coord_filename)) 
+        && (!indic_filename || strcmp (diff_filename, indic_filename))) {
         diff_file = fopen (diff_filename, "w");
         if (NULL == diff_file) {
             errprintf ("%s: %s", diff_filename, strerror (errno));
@@ -388,7 +392,10 @@ int main(int argc, char *argv[])
         fclose (indic_file);
     if (diff_file && diff_file != coord_file && diff_file != indic_file)
         fclose (diff_file);
-    
+
+    /* FIXME: This needs a command-line interface.  */
+    /* eaf_print_polygon (stdout, eaf, nlevels); */
+
     free(level);
     free(data);
     free(cumsizes);

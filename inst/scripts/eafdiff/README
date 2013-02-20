@@ -5,7 +5,7 @@ eafdiff.pl
 Create a plot of the differences between the EAFs of two files.
 
 
-  Requeriments of `eafdiff.pl'
+  Requirements of `eafdiff.pl'
   -----------------------
 
 The program has been tested on GNU/Linux using bash shell. If you
@@ -15,9 +15,7 @@ The following programs are required:
 
  * Perl 5
 
- * R (http://www.r-project.org/) version >= 2.6.2.
-
- * eaf: program for calculating EAFs.
+ * eaf R package: http://iridia.ulb.ac.be/~manuel/eaftools
 
 The following programs are only required if the corresponding features
 are enabled by editing the script:

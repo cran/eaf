@@ -44,7 +44,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
         instream = stdin;
         filename = "<stdin>"; /* used to diagnose errors.  */
     }
-    else if (NULL == (instream = fopen (filename,"r"))) {
+    else if (NULL == (instream = fopen (filename,"rb"))) {
         errprintf ("%s: %s", filename, strerror (errno));
         return (ERROR_FOPEN);
     }
@@ -71,10 +71,10 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     do { 
         line++;
         /* skip full lines starting with # */
-        if (!fscanf (instream, "%1[#]%*[^\n\r]", newline))
+        if (!fscanf (instream, "%1[#]%*[^\n]", newline))
             /* and whitespace */
-            fscanf (instream, "%*[ \t]");
-        retval = fscanf (instream, "%1[\n\r]", newline);
+            fscanf (instream, "%*[ \t\r]");
+        retval = fscanf (instream, "%1[\n]", newline);
     } while (retval == 1);
 
     if (retval == EOF) { /* faster than !feof() */
@@ -122,8 +122,8 @@ read_objective_t_data (const char *filename, objective_t **data_p,
                         cumsizes[nsets], nsets, (double)number);
 #endif
                 /* skip possible trailing whitespace */
-                fscanf (instream, "%*[ \t]");
-                retval = fscanf (instream, "%1[\n\r]", newline);
+                fscanf (instream, "%*[ \t\r]");
+                retval = fscanf (instream, "%1[\n]", newline);
 	    } while (retval == 0);
             
 	    if (!nobjs)
@@ -147,9 +147,9 @@ read_objective_t_data (const char *filename, objective_t **data_p,
 
             /* look for an empty line */
             line++;
-            if (!fscanf (instream, "%1[#]%*[^\n\r]", newline))
-                fscanf (instream, "%*[ \t]");
-            retval = fscanf (instream, "%1[\n\r]", newline);
+            if (!fscanf (instream, "%1[#]%*[^\n]", newline))
+                fscanf (instream, "%*[ \t\r]");
+            retval = fscanf (instream, "%1[\n]", newline);
 
 	} while (retval == 0);
 
@@ -162,9 +162,9 @@ read_objective_t_data (const char *filename, objective_t **data_p,
         /* skip over successive empty lines */
         do { 
             line++;
-            if (!fscanf (instream, "%1[#]%*[^\n\r]", newline))
-                fscanf (instream, "%*[ \t]");
-            retval = fscanf (instream, "%1[\r\n]", newline);
+            if (!fscanf (instream, "%1[#]%*[^\n]", newline))
+                fscanf (instream, "%*[ \t\r]");
+            retval = fscanf (instream, "%1[\n]", newline);
         } while (retval == 1);
 
     } while (retval != EOF); /* faster than !feof() */

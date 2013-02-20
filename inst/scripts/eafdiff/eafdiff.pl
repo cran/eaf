@@ -1,14 +1,13 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafdiff.pl $Revision: 190 $
+# eafdiff.pl $Revision: 222 $
 #
 #---------------------------------------------------------------------
 #
-# Copyright (c) 2007, 2008, 2010, 2011  
+# Copyright (c) 2007, 2008, 2010, 2011, 2012
 # Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
-# LaTeX: \copyright 2007, 2008, 2010, 2011 
-#        Manuel L{\'o}pez-Ib{\'a}{\~n}ez
+# LaTeX: Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -67,25 +66,33 @@
 #
 # TODO: 
 #
-# * Fail if any subcommand fails. For example, do not even run R if
-#   the call to the eaf program failed.
+# * Fail if any subcommand fails.
 #
 #---------------------------------------------------------------------
 use strict;
 use warnings FATAL => 'all';
 use diagnostics;
 use File::Basename;
+use Getopt::Long qw(:config pass_through);
+
+my $copyright = '
+Copyright (C) 2008-2012 Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+This is free software.  You may redistribute copies of it under the terms of
+the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+There is NO WARRANTY, to the extent permitted by law.
+';
 
 my $progname = basename($0);
-my $version = ' $Revision: 190 $ ';
+my $version = ' $Revision: 222 $ ';
 
 my $Rexe = "R"; 
 
 my $ps2epsfilter = undef;
 $ps2epsfilter = "ps2eps"; ## Comment this out if you do not want ps2eps.
 my $eps2png = "convert"; # this is only required if --png is given
+my $pdf2png = "convert";
 
-requiredprog($Rexe, $ps2epsfilter);
+requiredprog($Rexe);
 
 # These have to be kept in sync.
 my $colors = '"#FFFFFF", "#BFBFBF","#808080","#404040","#000000"';
@@ -95,11 +102,13 @@ my $save_temps = 0;
 my $compress_flag = 0;
 my $flag_xmaximise = 0;
 my $flag_ymaximise = 0;
-my $fulleaf_flag = 0;
-my $area_flag;
+my $flag_fulleaf = 0;
+my $flag_area;
+my $flag_eps = 0;
 my $jpeg_flag = 0;
-my $png_flag  = 0;
-my $verbose_flag = 0;
+my $flag_png  = 0;
+my $flag_verbose = 0;
+my $flag_attsurfs = 1;
 my $filter = "";
 my $legendpos;
 my $xlim = "NULL";
@@ -108,50 +117,77 @@ my $label_left;
 my $label_right;
 my $label_obj1 = "objective 1";
 my $label_obj2 = "objective 2";
-my $output_eps;
+my $output_file;
+my $output_dir = "";
 my $overwrite = 1;
-
+my $scale = 1;
 &usage(1) if (@ARGV == 0);
+
+## Format commandline.
+my $commandline = &format_commandline ();
+
+GetOptions ('eps' => \$flag_eps,
+            'png' => \$flag_png,
+            'attsurfs!' => \$flag_attsurfs,
+            'output|o=s'   => \$output_file,
+            'output-dir=s' => \$output_dir,
+            'obj1:s'   => \$label_obj1,
+            'obj2:s'   => \$label_obj2,
+            'scale=f' => \$scale,
+## Silently accept this option for backwards compatibility.
+            'area' => \$flag_area,,
+            'points' => sub { $flag_area = 0; },
+            'full'   => sub { $flag_fulleaf = 1;
+                              $flag_area = 1 unless (defined($flag_area)); },
+            'verbose|v!'    => \$flag_verbose);
+
+requiredprog($ps2epsfilter) if ($flag_eps);
+requiredprog($eps2png) if ($flag_png and $flag_eps);
+requiredprog($pdf2png) if ($flag_png and not $flag_eps);
 
 sub usage {
     my $exitcode = shift;
     print<<"EOF";
+$progname: version $version
+$copyright
 Usage: $progname FILE1 FILE2
 Create a plot of the differences between the EAFs of FILE1 and FILE2.
 
- -h, --help          print this summary and exit
-     --version       print version number and exit
- -v, --verbose       print some information about what is doing
+ -h, --help          print this summary and exit;
+     --version       print version number and exit;
+ -v, --verbose       print some information about what is doing;
 
-     --left=STRING   label for left plot
-     --right=STRING  label for right plot
-     --obj1=STRING   label for objective 1 (x-axis)
-     --obj2=STRING   label for objective 2 (y-axis)
+     --full          plot the full EAF instead of the differences;
+     --points        plot points instead of areas;
+
+     --left=STRING   label for left plot;
+     --right=STRING  label for right plot;
+     --obj1=STRING   label for objective 1 (x-axis);
+     --obj2=STRING   label for objective 2 (y-axis);
                      (labels can be R expressions,
-                      e.g., --obj1="expression(pi)")
+                      e.g., --obj1="expression(pi)");
 
-     --legendpos={top,bottom}{left,right}  position of the legend
+     --legendpos={top,bottom}{left,right}  position of the legend;
 
-     --xlim=REAL,REAL  limits of x-axis
-     --ylim=REAL,REAL  limits of y-axis
+     --xlim=REAL,REAL  limits of x-axis;
+     --ylim=REAL,REAL  limits of y-axis;
 
-     --maximise      handle a maximisation problem
-     --xmaximise     maximise first objective
-     --ymaximise     maximise second objective
+     --maximise      handle a maximisation problem;
+     --xmaximise     maximise first objective;
+     --ymaximise     maximise second objective;
 
- -o  --output=FILE   output file
-     --full          plot the full EAF instead of the differences
-     --points        plot the full EAF as points instead of areas
- -z  --gzip          compress the output file (adds gz extension).
+     --[no]attsurfs  do not add attainment surfaces to the plot;
+     --scale REAL    scale the plot so fonts become larger;
+
+ -o  --output=FILE   output file;
+ -z  --gzip          compress the output file (adds gz extension);
      --png           generate also png file from the eps output
-                     (requires ImageMagick)
-     --save-temps    Keep temporary files in the current directory
+                     (requires ImageMagick);
+     --eps           generate EPS file (default is PDF);
+     --save-temps    keep temporary files in the current directory;
 EOF
     exit $exitcode;
 }
-
-## Format commandline.
-my $commandline = &format_commandline ();
 
 my @files = ();
 ## Handle parameters
@@ -166,19 +202,7 @@ while (@ARGV) {
            or $argv =~ /^--right$/) {
         $label_right =  &get_arg ($argv);
 
-    } elsif ($argv =~ /^--obj1=/
-           or $argv =~ /^--obj1$/) {
-        $label_obj1 = &get_arg ($argv);
-
-    } elsif ($argv =~ /^--obj2=/
-           or $argv =~ /^--obj2$/) {
-        $label_obj2 =  &get_arg ($argv);
-
-    } elsif ($argv =~ /^-o=/ or $argv =~ /^--output=/
-             or $argv =~ /^-o$/ or $argv =~ /^--output$/) {
-        $output_eps = &get_arg ($argv);
-    }
-    elsif ($argv =~ /^--legendpos=/
+    } elsif ($argv =~ /^--legendpos=/
            or $argv =~ /^--legendpos$/) {
         my $arg = &get_arg ($argv);
         $legendpos  = "$arg" if ($arg);
@@ -203,21 +227,6 @@ while (@ARGV) {
     elsif ($argv =~ /--ymax/) {
         $flag_ymaximise = 1;
     }
-    elsif ($argv =~ /--full/) {
-        $fulleaf_flag = 1;
-        $area_flag = 1 unless (defined($area_flag));
-    }
-    ## Silently accept this option for backwards compatibility.
-    elsif ($argv =~ /^--area$/) {
-        $area_flag = 1;
-    }
-    elsif ($argv =~ /^--points$/) {
-        $area_flag = 0;
-    }
-    elsif ($argv =~ /^--png$/) {
-        requiredprog($eps2png);
-        $png_flag = 1;
-    }
     elsif ($argv =~ /^-z$/ or $argv =~ /^--gzip$/) {
         requiredprog ("gzip");
         $compress_flag = 1;
@@ -227,20 +236,12 @@ while (@ARGV) {
     }
 
     ## The remainder options are standard.
-    elsif ($argv =~ /^-v$/ or $argv =~ /^--verbose$/) {
-        $verbose_flag = "-v";
-    }
     elsif ($argv =~ /^--help/ or $argv =~ /^-h/) {
         &usage(0);
     }
     elsif ($argv =~ /^--version/) {
         print "$progname: version $version\n";
-        print <<'EOF';
-Copyright (C) 2008-2009 Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
-This is free software.  You may redistribute copies of it under the terms of
-the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-There is NO WARRANTY, to the extent permitted by law.
-EOF
+        print $copyright;
         exit (0);
     }
     elsif ($argv =~ /^--/ or $argv =~ /^-/) {
@@ -261,23 +262,30 @@ my $file1 = $files[0];
 die "$progname: error: cannot read $file1\n" unless (-r $file1);
 my $file2 = $files[1];
 die "$progname: error: cannot read $file2\n" unless (-r $file2);
-my $outfile  = basename($file1)."-".basename($file2);
+$output_dir .= "/" if ($output_dir and not($output_dir =~ m|/$|));
+my $outsuffix = ($flag_eps) ? ".eps" : ".pdf";
+unless (defined($output_file) and $output_file) {
+    $output_file  = $output_dir . basename($file1)."-".basename($file2);
+    $output_file = (($flag_fulleaf) 
+                    ? "${output_file}_full$outsuffix" : "${output_file}$outsuffix");
+}
+if ($output_file !~ m/$outsuffix$/) {
+    $output_file =~ s/(\.pdf|\.eps|\.ps|\.png)?$/$outsuffix/;
+}
 
-$output_eps = (($fulleaf_flag) 
-               ? "${outfile}_full.eps" : "${outfile}.eps") unless (defined($output_eps) and $output_eps);
+die "$progname: error: $output_file already exists.\n" if (-e $output_file
+                                                           and not $overwrite);
 
-die "$progname: error: $output_eps already exists.\n" if (-e $output_eps
-                                                          and not $overwrite);
-
-$filter = "|$ps2epsfilter -s b0 -q -l -B -O -P > " if (defined($ps2epsfilter) 
+$filter = "|$ps2epsfilter -s b0 -q -l -B -O -P > " if ($flag_eps
+                                                       and defined($ps2epsfilter)
                                                        and -x $ps2epsfilter);
 unless (defined($legendpos)) {
-    $legendpos = ($fulleaf_flag) ? "bottomleft" : "topright";
+    $legendpos = ($flag_fulleaf) ? "bottomleft" : "topright";
 }
 
 $label_left = basename($file1) unless (defined($label_left) and $label_left);
 $label_right= basename($file2) unless (defined($label_right) and $label_right);
-$area_flag = 0 unless (defined($area_flag));
+$flag_area = 1 unless (defined($flag_area));
 
 
 $label_left = parse_expression ($label_left);
@@ -285,7 +293,7 @@ $label_right = parse_expression ($label_right);
 $label_obj1 = parse_expression ($label_obj1);
 $label_obj2 = parse_expression ($label_obj2);
 
-print "$progname: generating plot $output_eps ...\n";
+#print "$progname: generating plot $output_file ...\n";
 
 my $Rfile = "$$.R";
 open(R, ">$Rfile") or die "$progname: error: can't open $Rfile: $!\n";
@@ -300,7 +308,7 @@ print R <<"EOFR";
 # Input: 
 #        label1    = label for first plot
 #        label2    = label for second plot
-#        output_eps = filename for output plot
+#        output_file = filename for output plot
 #        legendpos = location of the legend or "" for no legend.
 #
 # Created by $commandline
@@ -317,19 +325,22 @@ file.left <- "$file1"
 file.right <- "$file2"
 title.left  <- $label_left
 title.right <- $label_right
-eps.file  <- "$output_eps"
+output.file  <- "$output_file"
 legend.pos <- "$legendpos"
 maximise <- c(${flag_xmaximise}, ${flag_ymaximise})
 xlab <- $label_obj1
 ylab <- $label_obj2
 Xlim <- $xlim
 Ylim <- $ylim
-full.eaf <- as.logical(${fulleaf_flag})
-eaf.type <- ifelse(${area_flag}, "area", "point")
-
+full.eaf <- as.logical(${flag_fulleaf})
+eaf.type <- ifelse(${flag_area}, "area", "point")
+flag.eps <- as.logical(${flag_eps})
+flag.attsurfs <- as.logical(${flag_attsurfs})
+scale <- $scale
 EOFR
 
 print R <<'EOFR';
+
 
 data.left <- read.data.sets (file.left)
 data.right <- read.data.sets (file.right)
@@ -341,20 +352,26 @@ cat(sprintf("ylim = c(%s, %s)\n", ylim[1], ylim[2]))
 if (!is.null(Xlim)) xlim <- Xlim
 if (!is.null(Ylim)) ylim <- Ylim
 
-eps.title <- eps.file
-eps.file <- paste(filter, eps.file, sep="")
-postscript(eps.file, title=eps.title,
-           paper = "special", horizontal=F, onefile=F,
-           width=9, height=5,
-           family = "Helvetica")
-
+output.title <- output.file
+output.file <- paste(filter, output.file, sep="")
+if (flag.eps) {
+  postscript(output.file, title = output.title,
+             paper = "special", horizontal=F, onefile=F,
+             width = 9 / scale, height = 6 / scale, family = "Helvetica")
+} else {
+  pdf(output.file, title = output.title,
+      width = 9 / scale, height = 6 / scale, family = "Helvetica")
+}
 eafdiffplot (data.left, data.right, col = col, intervals = intervals,
-              full.eaf = full.eaf, type = eaf.type, legend.pos = legend.pos,
-              title.left = title.left, title.right = title.right,
-              cex = 1.0, cex.lab = 1.1, cex.axis = 1.0,
-              xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab, maximise = maximise)
+             full.eaf = full.eaf, type = eaf.type, legend.pos = legend.pos,
+             title.left = title.left, title.right = title.right,
+             cex = 1.0, cex.lab = 1.1, cex.axis = 1.0,
+             xlim = xlim, ylim = ylim, xlab = xlab, ylab = ylab,
+             maximise = maximise,
+             percentiles = if(flag.attsurfs) 50 else NA,
+             grand.lines = flag.attsurfs)
 dev.off()
-cat (paste("eafdiffplot:", eps.file, "\n"))
+cat (paste("eafdiffplot:", output.file, "\n"))
 
 EOFR
 
@@ -386,11 +403,17 @@ or die "$progname: error: R failed to create the plots (@args)\n";
 # those points. Perhaps there is some way to detec this in R itself.
 #
 #
-if ($png_flag) {
-    my $output_png = $output_eps;
-    $output_png =~ s/\.eps$/.png/;
+if ($flag_png) {
+    my $output_png = $output_file;
+    $output_png =~ s/${outsuffix}$/.png/;
     #$output_png =~ s[/eps/][/png/];
-    `$eps2png -render +antialias -density 150 -background white -flatten $output_eps $output_png`;
+    if ($flag_eps) {
+        `$eps2png -render +antialias -density 300 -background white -flatten $output_file $output_png`;
+    } else {
+        my $tmpfile = "/tmp/". basename($output_file);
+        `pdfcrop $output_file $tmpfile`;
+        `$pdf2png -render +antialias -density 300 -background white -flatten $tmpfile $output_png`;
+    }
     #my $output_png_eps = $output_png;
     #my $output_png_eps =~ s/\.png$/_png.eps/;
     #`convert $output_png $output_png_eps`;
@@ -398,7 +421,7 @@ if ($png_flag) {
     #`gzip --force -v $output_png_eps`;
 }
 #                 if($jpeg_flag) {
-#                     $output_jpg = $output_eps;
+#                     $output_jpg = $output_file;
 #                     $output_jpg =~ s/\.eps$/.jpg/;
 #                     $output_jpg =~ s[/eps/][/jpg/];
 #                     $output_jpg_eps = $output_jpg;
@@ -413,7 +436,7 @@ if ($png_flag) {
 ## FIXME: Do this on the fly within the R script by using pipes.
 if ($compress_flag) {
     print "$progname: compressing: ";
-    `gzip --force -v $output_eps`;
+    `gzip --force -v $output_file`;
 }
 
 unless ($save_temps) {
@@ -489,7 +512,7 @@ sub requiredprog {
 sub execute {
     my $command = shift;
 
-    if ($verbose_flag) {
+    if ($flag_verbose) {
         print $command ."\n";
         print `$command`;
     } else {

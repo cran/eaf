@@ -16,7 +16,7 @@ eafdiffplot(data.left, data.right,
              col = c("#FFFFFF", "#BFBFBF","#808080","#404040","#000000"),
              percentiles = c(50),
              full.eaf = FALSE,
-             type = ifelse(full.eaf, "area", "point"),
+             type = "area",
              legend.pos = ifelse(full.eaf,"bottomleft", "topright"),
              title.left = deparse(substitute(data.left)),
              title.right = deparse(substitute(data.right)),
@@ -25,6 +25,7 @@ eafdiffplot(data.left, data.right,
              cex.lab = par("cex.lab"),
              cex.axis = par("cex.axis"),
              maximise = c(FALSE, FALSE),
+             grand.lines = TRUE,
              ...)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -41,12 +42,10 @@ eafdiffplot(data.left, data.right,
 \item{col}{a character vector giving the color for each
   interval. It must be true that \code{length(col) == length(intervals)}.
 }
-  \item{percentiles}{the percentiles of the EAF of each side that will
-    be plotted as  attainment surfaces. See \code{\link{eafplot.default}}.
+\item{percentiles}{the percentiles of the EAF of each side that will be plotted as attainment surfaces. \code{NA} does not plot any. See \code{\link{eafplot.default}}.
 }
 \item{full.eaf}{whether to plot the EAF of each side instead of the
   differences between the EAFs.
-
 }
 \item{type}{whether the EAF differences are plotted as points
   (\samp{points}) or whether to color the areas that have at least a
@@ -65,6 +64,9 @@ eafdiffplot(data.left, data.right,
 \item{maximise}{whether the first and/or second objective correspond to
   a maximisation problem.
 }
+\item{grand.lines}{whether to plot the grand-best and grand-worst
+  attainment surfaces.
+}
 
 \item{\dots}{other graphical parameters are passed down to
   \code{\link{plot.default}}.
@@ -79,6 +81,32 @@ eafdiffplot(data.left, data.right,
   over all data. This two surfaces delimit the area where differences
   may exist. In addition, it also plots the 50\%-attainment surface of
   each data set.
+  
+  With \code{type = "point"}, only the points where there is a change in
+  the value of the EAF difference are plotted. This means that for areas
+  where the EAF differences stays constant, the region will appear in
+  white even if the value of the differences in that region is
+  large. This explain "white holes" surrounded by black
+  points.
+
+  With \code{type = "area"}, the area where the EAF differences has a
+  certain value is plotted.  The idea for the algorithm to compute the
+  areas was provided by Carlos M. Fonseca.  The implementation uses R
+  polygons, which some PDF viewers may have trouble rendering correctly
+  (See
+  \url{http://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders}). Plots (should) look correct when printed.
+
+  Large differences that appear when using \code{type = "points"} may
+  seem to dissapear when using \code{type = "area"}. The explanation is
+  the points size is independent of the axes range, therefore, the
+  plotted points may seem to cover a much larger area than the actual
+  number of points. On the other hand, the areas size is plotted with
+  respect to the objective space, without any extra borders. If the
+  range of an area becomes smaller than one-pixel, it won't be
+  visible. As a consequence, zooming in or out certain regions of the plots
+  does not change the apparent size of the points, whereas it affects
+  considerably the apparent size of the areas.
+  %
 }
 \value{
   No return value.
@@ -99,10 +127,13 @@ eafdiffplot(data.left, data.right,
    \code{\link{read.data.sets}}, \code{\link{eafplot}}
 }
 \examples{
-A1<-read.data.sets(file.path(system.file(package="eaf"),"extdata","ALG_1_dat"))
-A2<-read.data.sets(file.path(system.file(package="eaf"),"extdata","ALG_2_dat"))
-eafdiffplot(A1,A2)
-eafdiffplot(A1,A2, full.eaf=TRUE)
+A1 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "ALG_1_dat"))
+A2 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "ALG_2_dat"))
+eafdiffplot(A1, A2, type = "area")
+\dontrun{% These take time
+eafdiffplot(A1, A2, type = "point")
+eafdiffplot(A1, A2, full.eaf = TRUE)
+}
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

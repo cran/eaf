@@ -131,14 +131,16 @@ eafplot.formula <-
       .cupdate(cond.current.level,
                cond.max.level)
   }
-
-  par(mfrow=.check.layout(NULL,cond.max.level)[2:3])
+  # FIXME: I don't think this is doing the right thing.
+  op <- par(mfrow=.check.layout(NULL,cond.max.level)[2:3])
   for (i in seq_len(length(panel.args))) {
     eafplot.default(panel.args[[i]]$points,
                     panel.args[[i]]$sets,
                     panel.args[[i]]$groups,
                     percentiles, ...)
   }
+  par(op)
+  invisible()
 }
 
 
