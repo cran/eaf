@@ -60,6 +60,7 @@
 #include <limits.h>
 #include <float.h>
 #include <math.h>
+#include <stdbool.h>
 
 /* If the input are always integers, adjusting this type will
    certainly improve performance.  */
@@ -82,7 +83,7 @@ typedef struct {
     int nruns;
     int size;
     int maxsize;
-    int *attained;
+    bool *attained;
     objective_t *data;
 } eaf_t;
 
@@ -115,7 +116,7 @@ fprint_set (FILE *stream, const objective_t **data, int ntotal)
 }
 
 static inline void
-attained_left_right (const int *attained, int division, int total,
+attained_left_right (const bool *attained, int division, int total,
                      int *count_left, int *count_right)
 {
     int count_l = 0;

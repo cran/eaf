@@ -1,11 +1,11 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafdiff.pl $Revision: 222 $
+# eafdiff.pl $Revision: 232 $
 #
 #---------------------------------------------------------------------
 #
-# Copyright (c) 2007, 2008, 2010, 2011, 2012
+# Copyright (c) 2007-2014
 # Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
 # LaTeX: Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
@@ -74,16 +74,17 @@ use warnings FATAL => 'all';
 use diagnostics;
 use File::Basename;
 use Getopt::Long qw(:config pass_through);
+use File::Temp qw/ tempfile /;
 
 my $copyright = '
-Copyright (C) 2008-2012 Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+Copyright (C) 2007-2014  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
 ';
 
 my $progname = basename($0);
-my $version = ' $Revision: 222 $ ';
+my $version = ' $Revision: 232 $ ';
 
 my $Rexe = "R"; 
 
@@ -105,6 +106,7 @@ my $flag_ymaximise = 0;
 my $flag_fulleaf = 0;
 my $flag_area;
 my $flag_eps = 0;
+my $flag_crop = (which_program("pdfcrop") ne "pdfcrop");
 my $jpeg_flag = 0;
 my $flag_png  = 0;
 my $flag_verbose = 0;
@@ -128,6 +130,7 @@ my $commandline = &format_commandline ();
 
 GetOptions ('eps' => \$flag_eps,
             'png' => \$flag_png,
+            'crop' => \$flag_crop,
             'attsurfs!' => \$flag_attsurfs,
             'output|o=s'   => \$output_file,
             'output-dir=s' => \$output_dir,
@@ -144,6 +147,7 @@ GetOptions ('eps' => \$flag_eps,
 requiredprog($ps2epsfilter) if ($flag_eps);
 requiredprog($eps2png) if ($flag_png and $flag_eps);
 requiredprog($pdf2png) if ($flag_png and not $flag_eps);
+requiredprog("pdfcrop") if ($flag_crop and not $flag_eps);
 
 sub usage {
     my $exitcode = shift;
@@ -167,7 +171,7 @@ Create a plot of the differences between the EAFs of FILE1 and FILE2.
                      (labels can be R expressions,
                       e.g., --obj1="expression(pi)");
 
-     --legendpos={top,bottom}{left,right}  position of the legend;
+     --legendpos=none|{top,bottom}{left,right} no legend or position of the legend;
 
      --xlim=REAL,REAL  limits of x-axis;
      --ylim=REAL,REAL  limits of y-axis;
@@ -381,6 +385,11 @@ my @args = ("$Rexe --quiet --vanilla --slave < $$.R");
 system(@args) == 0
 or die "$progname: error: R failed to create the plots (@args)\n";
 
+if ($flag_crop and not $flag_eps) {
+    my ($tmpfh, $tmpfilename) = tempfile();
+    execute ("pdfcrop $output_file $tmpfilename");
+    execute ("mv $tmpfilename $output_file");
+}
 # FIXME: EPS files tend to be huge, so sometimes pays off to convert
 # them to PNG or JPEG and then back to EPS. How to fix this:
 #
@@ -481,31 +490,38 @@ sub format_commandline {
 
 use Env '@PATH';
 use Cwd;
+# FIXME: This should return the empty string if not found.
+sub which_program {
+    my $program = shift;
+    my $cwd = cwd();
+    unless ($program =~ m|^.?.?/|) {
+        # If no path was given
+        foreach my $path (@PATH) {
+            if (-e "$path/$program") {
+                $program = "$path/$program";
+                last;
+            }
+        }
+        # Try also the current directory:
+        $program = "$cwd/$program" if (-e "$cwd/$program");
+    }
+    return $program;
+}
+
 sub requiredprog {
     my $cwd = cwd();
 
     foreach my $program (@_)
     {
         next if not defined $program;
-        unless ($program =~ m|^.?.?/|) {
-            # If no path was given
-            foreach my $path (@PATH) {
-                if (-e "$path/$program") {
-                    $program = "$path/$program";
-                    last;
-                }
-            }
-            # Try also the current directory:
-            $program = "$cwd/$program" if (-e "$cwd/$program");
-        }
-
+        my $pathtoprogram = which_program($program);
         die "$progname: cannot find required program `$program',"
         ." either in your PATH=\"". join(':',@PATH)
         ."\" or in the current directory`$cwd'\n"
-        unless ($program =~ m|^.?.?/|);
+        unless ($pathtoprogram =~ m|^.?.?/|);
         
         die "$progname: required program `$program' is not executable\n"
-        unless (-x $program);
+        unless (-x $pathtoprogram);
     }
 }
 

@@ -1,13 +1,13 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafplot.pl  ($Revision: 219 $)
+# eafplot.pl  ($Revision: 233 $)
 #
 #---------------------------------------------------------------------
 #
-# Copyright (c) 2005, 2008, 2009, 2010
+# Copyright (c) 2005-2014
 # Manuel Lopez-Ibanez  <manuel.lopez-ibanez@ulb.ac.be>
-# TeX: \copyright 2005, 2008, 2009, 2010  Manuel L{\'o}pez-Ib{\'a}{\~n}ez
+# TeX: \copyright 2005-2014  Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@
 #     population-based algorithms for the bi-objective quadratic
 #     assignment problem.  Journal of Mathematical Modelling and
 #     Algorithms, 5(1):111-137, April 2006.
-# 
+#
 #---------------------------------------------------------------------
 #
 # TODO: 
@@ -76,16 +76,17 @@ use diagnostics;
 use Carp;
 use File::Basename;
 use Getopt::Long qw(:config pass_through);;
+use File::Temp qw/ tempfile /;
 
 my $copyright ='
-Copyright (C) 2012  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+Copyright (C) 2005-2014  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
 ';
 
 my $progname = basename($0);
-my $version = ' $Revision: 219 $ ';
+my $version = ' $Revision: 233 $ ';
 
 my $Rexe = "R";
 requiredprog($Rexe);
@@ -93,21 +94,65 @@ requiredprog($Rexe);
 
 &usage(1) if (@ARGV == 0);
 
+my $percentiles;
+# FIXME: single/multiple plots are a mess. This is how it should work:
+# --single file1 file2 ... --output plotfile
+#      produces a single plot 'plotfile' from all input files. Labels are input filenames
+#
+# --no-single file --output plotfile
+#      produces a single plot 'plotfile' from input file. Labels are percentiles.
+#
+# --no-single file1 file2  --output plotfile
+#      error: use --suffix and/or --output-dir.
 my $flag_single_plot = 0;
 my $legend;
 my $output_file;
 my $flag_verbose = 0;
 my $flag_eps = 0;
+my $flag_crop = (which_program("pdfcrop") ne "pdfcrop");
 my $label_obj1 = "objective 1";
 my $label_obj2 = "objective 2";
+my $flag_area = 0;
+my $flag_ymaximise = 0;
+my $flag_xmaximise = 0;
+my $flag_maximise = 0;
+my $flag_best = 0;
+my $flag_median = 0;
+my $flag_worst = 0;
+my $colors = "NULL";
 
-GetOptions ('eps' => \$flag_eps,
+GetOptions ('area' => \$flag_area,
+            'eps' => \$flag_eps,
+            'crop' => \$flag_crop,
             'single' => \$flag_single_plot,
+            'best|b' => \$flag_best,
+            'median|m' => \$flag_median,
+            'worst|w' => \$flag_worst,
+            'maximise' => \$flag_maximise,
+            'xmaximise' => \$flag_xmaximise,
+            'ymaximise' => \$flag_ymaximise,
             'output|o=s'   => \$output_file,
             'legend=s' => \$legend,
+            'colors=s' => \$colors,
             'obj1:s'   => \$label_obj1,
             'obj2:s'   => \$label_obj2,
             'verbose|v' => \$flag_verbose);
+
+
+requiredprog("pdfcrop") if ($flag_crop and not $flag_eps);
+
+if ($flag_best) {
+    $percentiles .= ", " if (defined($percentiles));
+    $percentiles .= "0";
+}
+if ($flag_median) {
+    $percentiles .= ", " if (defined($percentiles));
+    $percentiles .= "50";
+}
+if ($flag_worst) {
+    $percentiles .= ", " if (defined($percentiles));
+    $percentiles .= "100";
+}
 
 sub version {
     print "$progname: version $version\n";
@@ -125,37 +170,43 @@ Usage: $progname [OPTIONS] FILES
   Plot the best/median/worst attainment surfaces for a set of input
   points.
 
- -h, --help          print this summary and exit;
-     --version       print version number and exit;
+ -h, --help          print this summary and exit
+     --version       print version number and exit
 
- -v, --verbose      increase verbosity and keep intermediate files;
+ -v, --verbose      increase verbosity and keep intermediate files
 
  -I, --iqr, --IQR     plot IQR (25%-75% percentile) instead of best and
-                      worst;
- -b, --best           plot best attainment surface;
- -m, --median         plot median attainment surface;
- -w, --worst          plot worst attainment surface;
+                      worst
+ -b, --best           plot best attainment surface
+ -m, --median         plot median attainment surface
+ -w, --worst          plot worst attainment surface
  -p, --percentiles=INT[,INT..] 
-                      plot the given percentile(s) of the EAF;
+                      plot the given percentile(s) of the EAF
 
-   , --extra=FILE   add extra points to the plot;
+     --extra=FILE   add extra points to the plot
 
-   , --extra-label=STRING  label in the legend for the extra points;
+     --extra-label=STRING  label in the legend for the extra points
 
      --obj1=STRING   label for objective 1 (x-axis)
      --obj2=STRING   label for objective 2 (y-axis)
                      (labels can be R expressions, 
                       e.g., --obj1="expression(pi)")
 
-   , --legend=STRING A legend like: '"Algorithm A", "Algorithm B"'
+     --legend=STRING A legend like: '"Algorithm A", "Algorithm B"'
 
-   , --legendpos={top,bottom}{left,right}  position of the legend;
+     --legendpos={top,bottom}{left,right}  position of the legend
 
-     --xlim=REAL,REAL  limits of x-axis;
-     --ylim=REAL,REAL  limits of y-axis;
+     --xlim=REAL,REAL  limits of x-axis
+     --ylim=REAL,REAL  limits of y-axis
 
      --area         plot the area dominated by the attainment surfaces instead
                     of lines.
+                    
+     --colors=STRING,STRING  bounds for color range in area mode (default '"gray","black"')
+
+     --maximise      handle a maximisation problem
+     --xmaximise     maximise first objective
+     --ymaximise     maximise second objective
 
  -o, --output=FILE  output file.
 
@@ -172,9 +223,6 @@ EOF
 my $commandline = &format_commandline ();
 
 my @files = ();
-my $percentiles;
-my $flag_ymaximise = 0;
-my $flag_area = 0;
 my $flag_axislog = "";
 my $extra_points = "NULL";
 my $extra_labels = "NULL";
@@ -193,22 +241,10 @@ while (@ARGV) {
         &usage(0);
     } elsif ($argv =~ /^--version/) {
         &version();
-    } elsif ($argv =~ /--ymaximise/ or $argv =~ /-ymaximise/
-             # For backwards compatibility
-             or $argv =~ /--stoptime/ or $argv =~ /-stoptime/) {
+    } elsif (# For backwards compatibility
+             $argv =~ /--stoptime/ or $argv =~ /-stoptime/) {
         print "$progname: maximising y-axis\n";
         $flag_ymaximise = 1;
-    } elsif ($argv =~ /^--area/) {
-        $flag_area = 1;
-    } elsif ($argv =~ /^-b$/ or $argv =~ /^--best$/i) {
-        $percentiles .= ", " if (defined($percentiles));
-        $percentiles .= "0";
-    } elsif ($argv =~ /^-m$/ or $argv =~ /^--median$/i) {
-        $percentiles .= ", " if (defined($percentiles));
-        $percentiles .= "50";
-    } elsif ($argv =~ /^-w$/ or $argv =~ /^--worst$/i) {
-        $percentiles .= ", " if (defined($percentiles));
-        $percentiles .= "100";
     }
     elsif ($argv =~ /^-I/ or $argv =~ /^--iqr/i) {
         $IQR_flag = 1;
@@ -264,7 +300,6 @@ while (@ARGV) {
         push (@files, $argv);
     }
 }
-
 
 @files = &unique(@files);
 die "$progname: error: no input files given\n" unless (@files);
@@ -331,7 +366,7 @@ foreach my $inpfile (@files) {
         } elsif ($flag_area) {
             $file_eps = "$inpdir/att_area_${basefile}";
         } else {
-            $file_eps = "$inpdir/att_${basefile}";
+            $file_eps = "$inpdir/${basefile}_att";
         }
         $eaffiles = "\"${filedata}\"";
     } else {
@@ -350,10 +385,23 @@ unless (defined($output_file) and $output_file) {
     $output_file = $outfile;
 }
 
+# Remove suffix, the R code will add the correct one.
+$output_file =~ s/(\.pdf|\.eps|\.ps|\.png)$//;
+
+
 my $str_epsfiles = asRlist(@epsfiles);
 my $str_titles = asRlist(@titles);
 my $str_eaffiles = join(', ', @eaffiles);
 $legend = $str_titles unless(defined($legend));
+
+if ($flag_maximise) {
+    $flag_xmaximise = 1;
+    $flag_ymaximise = 1;
+}
+
+print "$progname: maximising x-axis\n" if ($flag_xmaximise);
+print "$progname: maximising y-axis\n" if ($flag_ymaximise);
+
 
 my $Rfile = "$$.R";
 open(R, ">$Rfile") or die "$progname: error: can't open $Rfile: $!\n";
@@ -377,7 +425,7 @@ filter <- "$filter"
 file.extra <- list(${extra_points})
 extra.legend <- c(${extra_labels})
 
-ymaximise <- $flag_ymaximise
+maximise <- as.logical(c($flag_xmaximise, $flag_ymaximise))
 legend.txt <- c($legend)
 legend.pos <- "$legendpos"
 log <- "$flag_axislog"
@@ -386,6 +434,7 @@ Ylim <- $ylim
 eaf.type <- ifelse(${flag_area}, "area", "point")
 xlab <- $label_obj1
 ylab <- $label_obj2
+colors <- c($colors)
 percentiles <- c($percentiles)
 percentiles <- if (is.null(percentiles)) percentiles else sort(percentiles)
 do.eaf <- as.logical($do_eaf)
@@ -400,8 +449,9 @@ EOFR
 
 print R <<'EOFR';
 if (eaf.type == "area") {
-  col <- colnames
-  lty <- c("solid", "dashed", "solid")
+  col <- if (!is.null(colors)) colors else c('grey', 'black')
+  # These two are unused for "area"
+  lty <- NULL
   pch <- NA
 } else {
   col <- c("black", "darkgrey", "black", "grey40", "darkgrey")
@@ -434,11 +484,7 @@ if (is.null (file.extra[[1]])) {
      tmp <- read.table(file.extra[[i]], na.strings="NA")[,c(1,2)]
      extra.points[[i]] <- tmp
      xlim <- range(xlim, tmp[,1], na.rm=T)
-     if (ymaximise) {
-        ylim <- range(ylim, -tmp[,2], na.rm=T)
-     } else {
-        ylim <- range(ylim, tmp[,2], na.rm=T)
-     }
+     ylim <- range(ylim, tmp[,2], na.rm=T)
   }
 }
 
@@ -466,7 +512,7 @@ if (single.plot) {
            type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
            extra.points=extra.points, xlim=xlim, ylim=ylim,
            legend.pos = legend.pos, extra.legend = extra.legend,
-           legend.txt = legend.txt)
+           legend.txt = legend.txt, maximise = maximise)
   dev.null <- dev.off()
   cat ("Plot: ", output.file, "\n", sep='')
 } else {
@@ -490,7 +536,8 @@ if (single.plot) {
                      xlab = xlab, ylab = ylab, las = 0, log = log,
                      type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
                      extra.points=extra.points, xlim=xlim, ylim=ylim,
-                     legend.pos = legend.pos, extra.legend = extra.legend)
+                     legend.pos = legend.pos, extra.legend = extra.legend,
+                     maximise = maximise)
     dev.null <- dev.off()
     cat ("Plot: ", output.file, "\n", sep='')
   }
@@ -503,6 +550,13 @@ close R;
 ($flag_verbose) 
 ? print "$progname: generated R script: $Rfile\n" 
 : unlink($Rfile);
+
+# FIXME: This doesn't work with multiple output files.
+if ($flag_crop and not $flag_eps) {
+    my ($tmpfh, $tmpfilename) = tempfile();
+    execute ("pdfcrop $output_file $tmpfilename");
+    execute ("mv $tmpfilename $output_file");
+}
 
 exit 0;
 
@@ -548,31 +602,38 @@ sub format_commandline {
 
 use Env '@PATH';
 use Cwd;
+# FIXME: This should return the empty string if not found.
+sub which_program {
+    my $program = shift;
+    my $cwd = cwd();
+    unless ($program =~ m|^.?.?/|) {
+        # If no path was given
+        foreach my $path (@PATH) {
+            if (-e "$path/$program") {
+                $program = "$path/$program";
+                last;
+            }
+        }
+        # Try also the current directory:
+        $program = "$cwd/$program" if (-e "$cwd/$program");
+    }
+    return $program;
+}
+
 sub requiredprog {
     my $cwd = cwd();
 
     foreach my $program (@_)
     {
         next if not defined $program;
-        unless ($program =~ m|^.?.?/|) {
-            # If no path was given
-            foreach my $path (@PATH) {
-                if (-e "$path/$program") {
-                    $program = "$path/$program";
-                    last;
-                }
-            }
-            # Try also the current directory:
-            $program = "$cwd/$program" if (-e "$cwd/$program");
-        }
-
+        my $pathtoprogram = which_program($program);
         die "$progname: cannot find required program `$program',"
         ." either in your PATH=\"". join(':',@PATH)
         ."\" or in the current directory`$cwd'\n"
-        unless ($program =~ m|^.?.?/|);
+        unless ($pathtoprogram =~ m|^.?.?/|);
         
         die "$progname: required program `$program' is not executable\n"
-        unless (-x $program);
+        unless (-x $pathtoprogram);
     }
 }
 

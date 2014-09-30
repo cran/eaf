@@ -17,7 +17,7 @@ eafdiffplot(data.left, data.right,
              percentiles = c(50),
              full.eaf = FALSE,
              type = "area",
-             legend.pos = ifelse(full.eaf,"bottomleft", "topright"),
+             legend.pos = if (full.eaf) "bottomleft" else "topright",
              title.left = deparse(substitute(data.left)),
              title.right = deparse(substitute(data.right)),
              xlim = NULL, ylim = NULL,
@@ -40,7 +40,8 @@ eafdiffplot(data.left, data.right,
   \code{intervals} gives the labels of each interval for the legend.
 }
 \item{col}{a character vector giving the color for each
-  interval. It must be true that \code{length(col) == length(intervals)}.
+  interval. There must be as many colors as intervals, that is,
+  \code{length(col)} \code{==} \code{length(intervals)}.
 }
 \item{percentiles}{the percentiles of the EAF of each side that will be plotted as attainment surfaces. \code{NA} does not plot any. See \code{\link{eafplot.default}}.
 }

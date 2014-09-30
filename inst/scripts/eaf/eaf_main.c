@@ -96,6 +96,41 @@ static void version(void)
 "\n"        );
 }
 
+// FIXME: How to implement this with const char *str?
+static int read_ints (int *levels, char *str)
+{
+    char * cursor;
+    char * endp = str;
+    int k = 0;
+
+    do {
+        cursor = endp;
+        levels[k] = strtol(cursor, &endp, 10);
+        if (cursor == endp && (*endp == ',' || *endp == ';')) {
+            endp++;
+            continue;
+        }
+        k++;
+    } while (cursor != endp);
+
+    // not end of string: error
+    while (*cursor != '\0') {
+        if (!isspace(*cursor)) {
+            errprintf ("invalid argument to --levels '%s'", str);
+            exit (EXIT_FAILURE);
+        }
+        cursor++;
+    }
+
+    // no number: error
+    if (k == 1) {            
+        errprintf ("invalid argument to --levels '%s'", str);
+        exit (EXIT_FAILURE);
+    }
+
+    return k - 1;
+}
+
 /* FIXME: This function should be called eaf_print, and the function
    that prints each level should be attsurf_print. */
 void attsurf_print (eaf_t **eaf, int nlevels,
@@ -179,24 +214,22 @@ int main(int argc, char *argv[])
         {"level",      required_argument, NULL, 'l'},
         {NULL, 0, NULL, 0} /* marks end of list */
     };
-
-    level = malloc(10 * sizeof(int));
-    percentile = malloc(10 * sizeof(int));
+#define MAX_LEVELS 50
+    level = malloc(MAX_LEVELS * sizeof(int));
+    percentile = malloc(MAX_LEVELS * sizeof(int));
 
     while (0 < (option = getopt_long(argc, argv, short_options,
                                   long_options, &longopt_index))) {
         switch (option)
         {
         case 'l':
-            assert(nlevels < 10);
-            level[nlevels] = strtol(optarg, (char **)NULL, 10);
-            nlevels++;
+            assert(nlevels < MAX_LEVELS);
+            nlevels += read_ints(level + nlevels, optarg);
             break;
 
         case 'p':
-            assert(npercentiles < 10);
-            percentile[npercentiles] = strtol(optarg, (char **)NULL, 10);
-            npercentiles++;
+            assert(npercentiles < MAX_LEVELS);
+            npercentiles += read_ints(percentile + npercentiles, optarg);
             break;
 
         case 'o':
@@ -376,6 +409,9 @@ int main(int argc, char *argv[])
     }
 
     if (verbose_flag) {
+        fprintf (stderr, "# objectives (%d): --\n", nobj);
+        fprintf (stderr, "# sets: %d\n", nruns);
+        fprintf (stderr, "# points: %d\n", cumsizes[nruns - 1]);
         fprintf (stderr, "%s: calculating levels:", PROGRAM_NAME);
         for (k = 0; k < nlevels; k++) 
             fprintf (stderr, " %d", level[k]);

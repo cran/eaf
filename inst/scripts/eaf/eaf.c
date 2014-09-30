@@ -72,12 +72,9 @@ eaf_t * eaf_create (int nobj, int nruns, int npoints)
     /* Maximum is npoints, but normally it will be smaller, so at most
        log2(2 * nruns) realloc will occur.  */
     eaf->maxsize = 256 + npoints / (2 * nruns); 
+
     EAF_MALLOC (eaf->data, nobj * eaf->maxsize, sizeof(objective_t));
-    /* FIXME: attained requires too much memory for what it does. It
-       would be better to use "unsigned short" or "unsigned char".  Or
-       to separate this attained from the one in the main algorithm,
-       and use bool for this one.  */
-    EAF_MALLOC (eaf->attained, nruns * eaf->maxsize, sizeof(int));
+    EAF_MALLOC (eaf->attained, nruns * eaf->maxsize, sizeof(bool));
     return eaf;
 }
 
@@ -92,6 +89,7 @@ static void
 eaf_store_point (eaf_t * eaf, objective_t x, objective_t y, 
                  const int *save_attained)
 {
+    int k;
     objective_t * pos;
     const int nruns = eaf->nruns;
     const int nobj = eaf->nobj;
@@ -100,7 +98,7 @@ eaf_store_point (eaf_t * eaf, objective_t x, objective_t y,
         eaf_assert (eaf->size < INT_MAX / 2);
         eaf->maxsize = eaf->maxsize * 2;
         eaf->attained = realloc (eaf->attained, 
-                                 sizeof(int) * nruns * eaf->maxsize);
+                                 sizeof(bool) * nruns * eaf->maxsize);
         eaf_assert(eaf->attained);
         eaf->data = realloc (eaf->data,
                              sizeof(objective_t) * nobj * eaf->maxsize);
@@ -109,15 +107,17 @@ eaf_store_point (eaf_t * eaf, objective_t x, objective_t y,
     pos = eaf->data + nobj * eaf->size;
     pos[0] = x;
     pos[1] = y;
-    memcpy (eaf->attained + nruns * eaf->size, save_attained,
-            sizeof(int) * nruns);
+    /* We convert from int to bool. */
+    for (k = 0; k < nruns; k++) {
+        eaf->attained[(nruns * eaf->size) + k] = (bool) save_attained[k];
+    }
     eaf->size++;
 }
 
 static void
 eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file, 
                 objective_t x, objective_t y, 
-                const int *save_attained, int nruns)
+                const bool *attained, int nruns)
 {
     int count1 = 0;
     int count2 = 0;
@@ -133,17 +133,17 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
 
     if (indic_file) {
         fprintf (indic_file, "%d", 
-                 save_attained[0] ? (count1++,1) : 0);
+                 attained[0] ? (count1++,1) : 0);
         for (k = 1; k < nruns/2; k++) 
             fprintf (indic_file, "\t%d", 
-                    save_attained[k] ? (count1++,1) : 0);
+                     attained[k] ? (count1++,1) : 0);
         for (k = nruns/2; k < nruns; k++)
             fprintf (indic_file, "\t%d", 
-                     save_attained[k] ? (count2++,1) : 0);
+                     attained[k] ? (count2++,1) : 0);
 
         fprintf (indic_file, (indic_file == diff_file) ? "\t" : "\n");
     } else if (diff_file) {
-        attained_left_right (save_attained, nruns/2, nruns, &count1, &count2);
+        attained_left_right (attained, nruns/2, nruns, &count1, &count2);
     }
 
     if (diff_file)
@@ -373,7 +373,7 @@ eaf_compute_area_new (eaf_t **eaf, int nlevels)
         int ka;
         /* Init colors.  */
         for (ka = 0; ka < eaf_a_size; ka++) {
-            int *attained = eaf[a]->attained + ka * nruns;
+            bool *attained = eaf[a]->attained + ka * nruns;
             int count_left, count_right;
             attained_left_right (attained, nruns/2, nruns,
                                  &count_left, &count_right);
@@ -558,7 +558,7 @@ eaf_compute_area_old (eaf_t **eaf, int nlevels)
         int ka;
         /* Init colors.  */
         for (ka = 0; ka < eaf_a_size; ka++) {
-            int *attained = eaf[a]->attained + ka * nruns;
+            bool *attained = eaf[a]->attained + ka * nruns;
             int count_left, count_right;
             attained_left_right (attained, nruns/2, nruns,
                                  &count_left, &count_right);

@@ -205,6 +205,25 @@ eafs <- function (points = NULL, sets = NULL, groups = NULL, percentiles = NULL)
   return (attsurfs)
 }
 
+get.extremes <- function(xlim, ylim, maximise, log)
+{
+  if (length(log) && log != "")
+    log <- strsplit(log, NULL)[[1L]]
+  if ("x" %in% log) xlim <- log(xlim)
+  if ("y" %in% log) ylim <- log(ylim)
+  
+  extreme1 <- ifelse(maximise[1],
+                     xlim[1] - 0.05 * diff(xlim),
+                     xlim[2] + 0.05 * diff(xlim))
+  extreme2 <- ifelse(maximise[2],
+                     ylim[1] - 0.05 * diff(ylim),
+                     ylim[2] + 0.05 * diff(ylim))
+  
+  if ("x" %in% log) extreme1 <- exp(extreme1)
+  if ("y" %in% log) extreme2 <- exp(extreme2)
+  return(c(extreme1, extreme2))
+}
+
 eafplot.default <-
   function (x, sets = NULL, groups = NULL,
             percentiles = c(0,50,100),
@@ -213,7 +232,8 @@ eafplot.default <-
             xlim = NULL, ylim = NULL,
             log = "",
             type = "point",
-            col = c("black", "darkgrey", "black", "grey40", "darkgrey"),
+            # FIXME: This default doesn't work when type == "area"
+            col = NULL,
             lty = c("dashed", "solid", "solid", "solid", "dashed"),
             lwd = c(1.75),
             pch = NA,
@@ -241,6 +261,14 @@ eafplot.default <-
                        left = 2,
                        right = 4)
 
+  if (is.null(col)) {
+    if (type == "point") {
+      col <- c("black", "darkgrey", "black", "grey40", "darkgrey")
+    } else {
+      col <- c("grey", "black")
+    }
+  }
+
   matrix.maximise <- function(z) {
     # R bug?: If z is data.frame with rownames != NULL, and
     # maximise == (FALSE, FALSE), then -z[, which(FALSE)]
@@ -250,24 +278,7 @@ eafplot.default <-
     z[, which(maximise)] <- -z[, which(maximise)]
     return(z)
   }
-  get.extremes <- function(xlim, ylim, maximise, log) {
-    if (length(log) && log != "")
-      log <- strsplit(log, NULL)[[1L]]
-    if ("x" %in% log) xlim <- log(xlim)
-    if ("y" %in% log) ylim <- log(ylim)
-    
-    extreme1 <- ifelse(maximise[1],
-                       xlim[1] - 0.05 * diff(xlim),
-                       xlim[2] + 0.05 * diff(xlim))
-    extreme2 <- ifelse(maximise[2],
-                       ylim[1] - 0.05 * diff(ylim),
-                       ylim[2] + 0.05 * diff(ylim))
 
-    if ("x" %in% log) extreme1 <- exp(extreme1)
-    if ("y" %in% log) extreme2 <- exp(extreme2)
-    return(c(extreme1, extreme2))
-  }
-    
   x[, which(maximise)] <- -x[, which(maximise)]
 
   if (is.null (attsurfs)) {
@@ -387,13 +398,12 @@ eafplot.default <-
          # surfaces to an existing plot. This way we can factor out
          # the code below and use it in plot.eaf and plot.eafdiff
 
-         ## Recycle values
-         lwd <- rep(lwd, length=length(attsurfs))
-         lty <- rep(lty, length=length(attsurfs))
-         col <- rep(col, length=length(attsurfs))
-         pch <- rep(pch, length=length(attsurfs))
-
          if (type == "area") {
+           if (length(col) != 2) {
+             stop ("length(col) != 2, but with 'type=area', eafplot.default needs just two colors")
+           }
+           colfunc <- colorRampPalette(col)
+           col <- colfunc(length(attsurfs))
            for (k in 1:length(attsurfs)) {
              poli <- points.steps(attsurfs[[k]])
              poli <- rbind(c(best1(poli[,1]), extreme[2]), poli,
@@ -401,6 +411,11 @@ eafplot.default <-
              polygon(poli[,1], poli[,2], border = NA, col = col[k])
            }
          } else {
+           ## Recycle values
+           lwd <- rep(lwd, length=length(attsurfs))
+           lty <- rep(lty, length=length(attsurfs))
+           col <- rep(col, length=length(attsurfs))
+           pch <- rep(pch, length=length(attsurfs))
            for (k in 1:length(attsurfs)) {
              tmp <- attsurfs[[k]]
              tmp <- rbind(c(best1(tmp[,1]), extreme[2]), tmp,
@@ -462,7 +477,7 @@ eafplot.default <-
     legend.txt <- sub("^100%$", "worst", legend.txt)
 
     if (!is.null(groups)) {
-      legend.txt <- unlist(tapply(levels(groups), levels(groups), paste, legend.txt))
+      legend.txt <- as.vector(t(outer(levels(groups), legend.txt, paste)))
     }
   }
   legend.txt <- c(legend.txt, extra.legend)
@@ -502,6 +517,11 @@ eafplot.default <-
   yaxis.side <- if (side == "left") 2 else 4
   maximise <- as.logical(maximise)
 
+  # We do not paint with the same color as the background since this
+  # will override the grid lines
+  ## FIXME: This should actually look at the bg color of the plot
+  col[col == "#FFFFFF"] <- NA
+
   # For !full.eaf && type == "area", str(eafdiff) is a polygon:
   ##  $  num [, 1:2]
   ##    - attr(*, "col")= num []
@@ -515,24 +535,6 @@ eafplot.default <-
     if (length(unique(eafdiff[,3])) > length(col)) {
       stop ("Too few colors: length(unique(eafdiff[,3])) > length(col)")
     }
-  }
-
-  get.extremes <- function(xlim, ylim, maximise, log) {
-    if (length(log) && log != "")
-      log <- strsplit(log, NULL)[[1L]]
-    if ("x" %in% log) xlim <- log(xlim)
-    if ("y" %in% log) ylim <- log(ylim)
-    
-    extreme1 <- ifelse(maximise[1],
-                       xlim[1] - 0.05 * diff(xlim),
-                       xlim[2] + 0.05 * diff(xlim))
-    extreme2 <- ifelse(maximise[2],
-                       ylim[1] - 0.05 * diff(ylim),
-                       ylim[2] + 0.05 * diff(ylim))
-
-    if ("x" %in% log) extreme1 <- exp(extreme1)
-    if ("y" %in% log) extreme2 <- exp(extreme2)
-    return(c(extreme1, extreme2))
   }
 
   extreme <- get.extremes(xlim, ylim, maximise, log)
@@ -601,6 +603,8 @@ eafplot.default <-
          if (nrow(eafdiff)) {
            if (type == "area") {
              if (full.eaf) {
+               # FIXME: eafplot.default is doing the same thing as
+               # below, but with different defaults
                for (i in 1:length(col)) {
                  poli <- points.steps(eafdiff[eafdiff[,3] == i, c(1,2), drop = FALSE])
                  poli <- rbind(c(best1(poli[,1]), extreme[2]), poli,
@@ -614,6 +618,7 @@ eafplot.default <-
                #print(unique(polycol))
                #print(length(col))
                ## The maximum value should also be painted.
+               polycol[polycol > length(col)] <- length(col)
                polycol[polycol > length(col)] <- length(col)
                #print(eafdiff)
                #print(col[polycol])
@@ -660,7 +665,7 @@ eafdiffplot <-
            percentiles = c(50),
            full.eaf = FALSE,
            type = "area",
-           legend.pos = ifelse(full.eaf, "bottomleft", "topright"),
+           legend.pos = if (full.eaf) "bottomleft" else "topright",
            title.left = deparse(substitute(data.left)),
            title.right = deparse(substitute(data.right)),
            xlim = NULL, ylim = NULL,
@@ -715,8 +720,8 @@ eafdiffplot <-
       DIFF$right <- compute.eaf (data.right)
       # Since plot.eafdiff.side uses floor to calculate the color, and
       # we want color[100] == color[99].
-      DIFF$left[DIFF$left[,3] == 100,3] <- 99
-      DIFF$right[DIFF$right[,3] == 100,3] <- 99
+      DIFF$left[DIFF$left[,3] == 100, 3] <- 99
+      DIFF$right[DIFF$right[,3] == 100, 3] <- 99
     }
     DIFF$left[,3] <- DIFF$left[,3] * length(intervals) / 100
     DIFF$right[,3] <- DIFF$right[,3] * length(intervals) / 100

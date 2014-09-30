@@ -1,3 +1,22 @@
+1.06
+
+* Fix bug when automatically generating a legend in eafplot with the
+  formula interface (Thanks to Bernd Bischl for reporting this)
+
+* Improve handling of various newline character formats.
+
+* Reduce memory consumption (up to four times less memory).
+
+* eafdiff.pl: Mention option --legendpos=none to hide the legend.
+
+* eafplot.pl: Add options --maximise and --xmaximise and --colors=.
+  Fix bug with --area.
+
+* eafplot.default now requires two colors when type=="area" and a
+  palette is interpolated between these two colors for all the
+  different levels plotted (Thanks to Alexandre Quemy for the suggestion).
+
+
 1.05
 
 * Implement eafdiffplot(, type = "area"). This is now the default. 

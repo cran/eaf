@@ -30,7 +30,7 @@ Plot the Empirical Attainment Function for two objectives
          xlim = NULL, ylim = NULL,
          log = "",
          type = "point",
-         col = c("black", "darkgrey", "black", "grey40", "darkgrey"),
+         col = NULL,
          lty = c("dashed", "solid", "solid", "solid", "dashed"),
          lwd = c(1.75),
          pch = NA,
