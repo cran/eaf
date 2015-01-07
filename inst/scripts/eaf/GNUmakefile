@@ -108,7 +108,7 @@ clean :
 
 all :  clean default
 
-DIST_SRC_FILES =  gcc.mk TODO Makefile README LICENSE svn_version \
+DIST_SRC_FILES =  gcc.mk TODO GNUmakefile README LICENSE svn_version \
 		  $(OBJS:.o=.c) $(HEADERS)
 DIST_SRC := eaf-$(VERSION)-src
 

@@ -1,3 +1,9 @@
+1.07
+
+* Silence CRAN warning for GNU extensions in Makefiles in
+  inst/scripts/eaf/Makefile.
+
+
 1.06
 
 * Fix bug when automatically generating a legend in eafplot with the

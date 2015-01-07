@@ -1,6 +1,6 @@
-b23450a26daa84f6e5ef6d72082ac973 *DESCRIPTION
+bce97473a62d94fda13927710b5b95e7 *DESCRIPTION
 38d62da311a854e58de716b1e5b7a46d *NAMESPACE
-099787cc2d9d7da80c6575db5d9ab7d3 *NEWS
+edb11685d037c7bbee2406d5e011c5d6 *NEWS
 f3cacbb9c11f772aaa6aba47389df8ae *R/calls.R
 4f7d4b14d225e81992673331a0682ac6 *R/common.R
 1e5065730c87ddc888822e5309ee1888 *R/eaf.R
@@ -24,8 +24,8 @@ c82ae516bb78c2c480edc0d2b772d094 *inst/extdata/run.sh
 62e7406969121933b5388117d9fca1cb *inst/extdata/tpls
 56013215aaa2b074b6d28f5db146e2cd *inst/extdata/wrots_l100w10_dat
 9d8856755ed34b78a57c0c5f6475319b *inst/extdata/wrots_l10w100_dat
+b04aebf9dcac348d5edd70d069352882 *inst/scripts/eaf/GNUmakefile
 4fdfcfa477c53b04e5a277b8b0f74223 *inst/scripts/eaf/LICENSE
-00bff90b958fbb91759baa26b2af4df0 *inst/scripts/eaf/Makefile
 69fc8f10309e35e7fcf693ee10a1b89b *inst/scripts/eaf/README
 4aabf9a9fb54e64e2c2ea5c06e14ea1d *inst/scripts/eaf/cvector.h
 47afbe1b7a95f86d35cc45714ceb876b *inst/scripts/eaf/eaf.c
@@ -35,7 +35,7 @@ dee0487ddd50f1f6f7bb2153a8ac18ad *inst/scripts/eaf/eaf.h
 e71707da24569343bc30dff8a15da9a0 *inst/scripts/eaf/eaf_io_priv.h
 eda171bed6e70a81bab6fdd8a44648ca *inst/scripts/eaf/eaf_main.c
 36bd08e4efdfd06c1f76d29ffff5e276 *inst/scripts/eaf/gcc.mk
-3636638817772e42b59d74cff571fbb3 *inst/scripts/eaf/svn_version
+bf8229696f7a3bb4700cfddef19fa23f *inst/scripts/eaf/svn_version
 a270ec64c26d92343b3824ee874d4139 *inst/scripts/eafdiff/README
 333c0252d9fd586115c8679fb72e91cb *inst/scripts/eafdiff/eafdiff.pl
 85d028a18ca7d9e2828e778c03efefb6 *inst/scripts/eafplot/README
@@ -44,7 +44,7 @@ a50efeb9926e468ca4a83dcba6842c7c *inst/scripts/eafplot/eafplot.pl
 2c64bec15c5b639175b78fa9b36e7400 *man/SPEA2minstoptimeRichmond.Rd
 44e62d56f83f842a84d76e0094613fbf *man/SPEA2relativeRichmond.Rd
 63bf54e6e62b6b9d4c21159c01f95c41 *man/SPEA2relativeVanzyl.Rd
-30d58383450d563ceabed8219a4d5f52 *man/eaf-package.Rd
+181b3a83111239b89b6e58fb92dde3fe *man/eaf-package.Rd
 92ddb3a7abfc1dfac4392ed6b23d9d82 *man/eafdiffplot.Rd
 ea7ae5505fbceaaec322dda8274cc16a *man/eafplot.Rd
 642b456648b4adf52e789bdbec8858ef *man/gcp2x2.Rd
