@@ -1,12 +1,12 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafdiff.pl $Revision: 232 $
+# eafdiff.pl $Revision: 252 $
 #
 #---------------------------------------------------------------------
 #
 # Copyright (c) 2007-2014
-# Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+# Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 # LaTeX: Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
 # This program is free software; you can redistribute it and/or modify
@@ -44,7 +44,7 @@
 #    doi: 10.1007/978-3-642-02538-9_9
 #
 # Moreover, as a personal note, I would appreciate it if you would
-# email <manuel.lopez-ibanez@ulb.ac.be> with citations of papers
+# email <manuel.lopez-ibanez@manchester.ac.uk> with citations of papers
 # referencing this work so I can mention them to my funding agent and
 # tenure committee.
 #
@@ -77,14 +77,14 @@ use Getopt::Long qw(:config pass_through);
 use File::Temp qw/ tempfile /;
 
 my $copyright = '
-Copyright (C) 2007-2014  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+Copyright (C) 2007-2017  Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
 ';
 
 my $progname = basename($0);
-my $version = ' $Revision: 232 $ ';
+my $version = ' $Revision: 252 $ ';
 
 my $Rexe = "R"; 
 
@@ -95,11 +95,10 @@ my $pdf2png = "convert";
 
 requiredprog($Rexe);
 
-# These have to be kept in sync.
-my $colors = '"#FFFFFF", "#BFBFBF","#808080","#404040","#000000"';
-my $legend = '"[0.0, 0.2)","[0.2, 0.4)","[0.4, 0.6)","[0.6, 0.8)","[0.8, 1.0]"';
-
-my $save_temps = 0;
+# Old default
+#my $colors = '"#FFFFFF", "#BFBFBF","#808080","#404040","#000000"';
+my $colors = '"#808080","#000000"';
+my $intervals = 5;
 my $compress_flag = 0;
 my $flag_xmaximise = 0;
 my $flag_ymaximise = 0;
@@ -137,12 +136,15 @@ GetOptions ('eps' => \$flag_eps,
             'obj1:s'   => \$label_obj1,
             'obj2:s'   => \$label_obj2,
             'scale=f' => \$scale,
-## Silently accept this option for backwards compatibility.
-            'area' => \$flag_area,,
             'points' => sub { $flag_area = 0; },
+            'colors=s' => \$colors,
+            'intervals=i' => \$intervals,
             'full'   => sub { $flag_fulleaf = 1;
                               $flag_area = 1 unless (defined($flag_area)); },
-            'verbose|v!'    => \$flag_verbose);
+            'verbose|v!'    => \$flag_verbose,
+## Silently accept these options for backwards compatibility.
+            'area' => \$flag_area,,
+            'save-temps' => \$flag_verbose);
 
 requiredprog($ps2epsfilter) if ($flag_eps);
 requiredprog($eps2png) if ($flag_png and $flag_eps);
@@ -157,38 +159,40 @@ $copyright
 Usage: $progname FILE1 FILE2
 Create a plot of the differences between the EAFs of FILE1 and FILE2.
 
- -h, --help          print this summary and exit;
-     --version       print version number and exit;
- -v, --verbose       print some information about what is doing;
+ -h, --help          print this summary and exit
+     --version       print version number and exit
+ -v, --verbose       increase verbosity and keep intermediate files
 
-     --full          plot the full EAF instead of the differences;
-     --points        plot points instead of areas;
+     --full          plot the full EAF instead of the differences
+     --points        plot points instead of areas
 
-     --left=STRING   label for left plot;
-     --right=STRING  label for right plot;
-     --obj1=STRING   label for objective 1 (x-axis);
-     --obj2=STRING   label for objective 2 (y-axis);
+     --left=STRING   label for left plot
+     --right=STRING  label for right plot
+     --obj1=STRING   label for objective 1 (x-axis)
+     --obj2=STRING   label for objective 2 (y-axis)
                      (labels can be R expressions,
-                      e.g., --obj1="expression(pi)");
+                      e.g., --obj1="expression(pi)")
 
-     --legendpos=none|{top,bottom}{left,right} no legend or position of the legend;
+     --legendpos=none|{top,bottom}{left,right} no legend or position of the legend
 
-     --xlim=REAL,REAL  limits of x-axis;
-     --ylim=REAL,REAL  limits of y-axis;
+     --xlim=REAL,REAL  limits of x-axis
+     --ylim=REAL,REAL  limits of y-axis
 
-     --maximise      handle a maximisation problem;
-     --xmaximise     maximise first objective;
-     --ymaximise     maximise second objective;
+     --maximise      handle a maximisation problem
+     --xmaximise     maximise first objective
+     --ymaximise     maximise second objective
 
-     --[no]attsurfs  do not add attainment surfaces to the plot;
-     --scale REAL    scale the plot so fonts become larger;
+     --[no]attsurfs  do not add attainment surfaces to the plot
+     --scale REAL    scale the plot so fonts become larger
 
- -o  --output=FILE   output file;
- -z  --gzip          compress the output file (adds gz extension);
+     --colors=STRING,STRING  colors for 50\% and 100\% difference (default: '"#808080","#000000"')
+     --intervals=INT number of intervals (default: 5)
+
+ -o  --output=FILE   output file
+ -z  --gzip          compress the output file (adds gz extension)
      --png           generate also png file from the eps output
-                     (requires ImageMagick);
-     --eps           generate EPS file (default is PDF);
-     --save-temps    keep temporary files in the current directory;
+                     (requires ImageMagick)
+     --eps           generate EPS file (default is PDF)
 EOF
     exit $exitcode;
 }
@@ -235,10 +239,6 @@ while (@ARGV) {
         requiredprog ("gzip");
         $compress_flag = 1;
     }
-    elsif ($argv =~ /^-save-temp$/ or $argv =~ /^--save-temp/) {
-        $save_temps = 1;
-    }
-
     ## The remainder options are standard.
     elsif ($argv =~ /^--help/ or $argv =~ /^-h/) {
         &usage(0);
@@ -322,8 +322,8 @@ print R <<"EOFR";
 
 library(eaf)
 
-col <- c($colors)
-intervals <- c($legend)
+col <- c("#FFFFFF", $colors)
+intervals <- $intervals
 filter <- "$filter"
 file.left <- "$file1"
 file.right <- "$file2"
@@ -448,7 +448,7 @@ if ($compress_flag) {
     `gzip --force -v $output_file`;
 }
 
-unless ($save_temps) {
+unless ($flag_verbose) {
     unlink("$$.R", "$$.Rout");
 } else {
     print "$progname: generated R script: $$.R\n";

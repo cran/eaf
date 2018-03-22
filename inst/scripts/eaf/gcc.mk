@@ -7,7 +7,7 @@ gcc-guess-march = $(strip $(shell ${CC} -march=$(MARCH) -x c -S -\#\#\# - < /dev
                 sed 's,march=,,'))
 
 WARN_CFLAGS = -pedantic -Wall -Wextra
-CFLAGS += -std=gnu99 $(WARN_CFLAGS)
+CFLAGS += $(WARN_CFLAGS)
 
 ifeq ($(DEBUG), 0)
   OPT_CFLAGS := -O3 -funroll-loops -ffast-math -DNDEBUG

@@ -1,13 +1,13 @@
 #!/usr/bin/perl -w
 #---------------------------------------------------------------------
 #
-# eafplot.pl  ($Revision: 233 $)
+# eafplot.pl  ($Revision: 251 $)
 #
 #---------------------------------------------------------------------
 #
-# Copyright (c) 2005-2014
-# Manuel Lopez-Ibanez  <manuel.lopez-ibanez@ulb.ac.be>
-# TeX: \copyright 2005-2014  Manuel L{\'o}pez-Ib{\'a}{\~n}ez
+# Copyright (c) 2005-2017
+# Manuel Lopez-Ibanez  <manuel.lopez-ibanez@manchester.ac.uk>
+# TeX: \copyright 2005-2017  Manuel L{\'o}pez-Ib{\'a}{\~n}ez
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 #    doi: 10.1007/978-3-642-02538-9_9
 #
 # Moreover, as a personal note, I would appreciate it if you would
-# email <manuel.lopez-ibanez@ulb.ac.be> with citations of papers
+# email <manuel.lopez-ibanez@manchester.ac.uk> with citations of papers
 # referencing this work so I can mention them to my funding agent and
 # tenure committee.
 #
@@ -79,14 +79,14 @@ use Getopt::Long qw(:config pass_through);;
 use File::Temp qw/ tempfile /;
 
 my $copyright ='
-Copyright (C) 2005-2014  Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+Copyright (C) 2005-2017  Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 This is free software.  You may redistribute copies of it under the terms of
 the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
 There is NO WARRANTY, to the extent permitted by law.
 ';
 
 my $progname = basename($0);
-my $version = ' $Revision: 233 $ ';
+my $version = ' $Revision: 251 $ ';
 
 my $Rexe = "R";
 requiredprog($Rexe);
@@ -94,6 +94,7 @@ requiredprog($Rexe);
 
 &usage(1) if (@ARGV == 0);
 
+my $colors = "NULL";
 my $percentiles;
 # FIXME: single/multiple plots are a mess. This is how it should work:
 # --single file1 file2 ... --output plotfile
@@ -107,6 +108,7 @@ my $percentiles;
 my $flag_single_plot = 0;
 my $legend;
 my $output_file;
+my @output_files;
 my $flag_verbose = 0;
 my $flag_eps = 0;
 my $flag_crop = (which_program("pdfcrop") ne "pdfcrop");
@@ -119,7 +121,6 @@ my $flag_maximise = 0;
 my $flag_best = 0;
 my $flag_median = 0;
 my $flag_worst = 0;
-my $colors = "NULL";
 
 GetOptions ('area' => \$flag_area,
             'eps' => \$flag_eps,
@@ -334,9 +335,6 @@ $label_obj2 = parse_expression ($label_obj2);
 
 my $num = 0;
 my $eaffiles = "";
-my $outfile;
-
-my @epsfiles;
 my @titles;
 my @eaffiles;
 foreach my $inpfile (@files) {
@@ -368,28 +366,25 @@ foreach my $inpfile (@files) {
         } else {
             $file_eps = "$inpdir/${basefile}_att";
         }
-        $eaffiles = "\"${filedata}\"";
     } else {
-        my @extrafiles = `split.pl $inpfile 2>&1`;
-        chomp (@extrafiles);
         $file_eps = "$inpdir/${basefile}";
-        $eaffiles = "list(\"" . join ("\", \"", @extrafiles) . "\")" ;
     }
-    push @epsfiles, $file_eps;
+    $eaffiles = "\"${filedata}\"";
+    push @output_files, $file_eps;
     push @titles, $inpfile;
     push @eaffiles, $eaffiles;
-    $outfile = $file_eps
 }
 
-unless (defined($output_file) and $output_file) {
-    $output_file = $outfile;
+# FIXME: We can override only one output file.
+if (defined($output_file) and $output_file) {
+    # Remove suffix, the R code will add the correct one.
+    $output_file =~ s/(\.pdf|\.eps|\.ps|\.png)$//;
+    $output_files[0] = $output_file;
 }
 
-# Remove suffix, the R code will add the correct one.
-$output_file =~ s/(\.pdf|\.eps|\.ps|\.png)$//;
 
 
-my $str_epsfiles = asRlist(@epsfiles);
+my $str_outfiles = asRlist(@output_files);
 my $str_titles = asRlist(@titles);
 my $str_eaffiles = join(', ', @eaffiles);
 $legend = $str_titles unless(defined($legend));
@@ -424,7 +419,8 @@ filter <- "$filter"
 
 file.extra <- list(${extra_points})
 extra.legend <- c(${extra_labels})
-
+extra.pch <- c(20, 1:25)
+extra.col <- c("black")
 maximise <- as.logical(c($flag_xmaximise, $flag_ymaximise))
 legend.txt <- c($legend)
 legend.pos <- "$legendpos"
@@ -439,9 +435,8 @@ percentiles <- c($percentiles)
 percentiles <- if (is.null(percentiles)) percentiles else sort(percentiles)
 do.eaf <- as.logical($do_eaf)
 single.plot <- as.logical($flag_single_plot)
-output.file  <- "$output_file"
 flag.eps <- as.logical(${flag_eps})
-epsfiles <- c(${str_epsfiles})
+output.files <- c(${str_outfiles})
 titles   <- c(${str_titles})
 eaffiles <- list(${str_eaffiles})
 
@@ -471,9 +466,16 @@ if (do.eaf) {
   xlim <- range(xlim, sapply(data, function(x) x[, 1]))
   ylim <- range(ylim, sapply(data, function(x) x[, 2]))
 } else {
-  attsurfs <- lapply(eaffiles, function(x) lapply(x, read.data.sets))
+  attsurfs <- lapply(eaffiles, function(x) {
+                     z <- read.data.sets(x)
+                     z <- split.data.frame(z, z$set)
+                     z <- lapply(z, function(y) {y$set <- 1; return(y)})
+                     return(z)})
   xlim <- range(xlim, sapply(attsurfs, function(x) do.call("rbind", x)[,1]))
   ylim <- range(ylim, sapply(attsurfs, function(x) do.call("rbind", x)[,2]))
+  lty <- c("blank")
+  pch <- c(20,21,22,23,4,5)
+  col <- c("black", "darkgrey", "black", "grey40", "darkgrey")
 }
 
 if (is.null (file.extra[[1]])) {
@@ -493,54 +495,42 @@ cat(sprintf("ylim = c(%s, %s)\n", ylim[1], ylim[2]))
 if (!is.null(Xlim)) xlim <- Xlim
 if (!is.null(Ylim)) ylim <- Ylim
 
-if (single.plot) {
-  output.title <- output.file
-  if (flag.eps) {
-    output.file <- paste(filter, output.file, ".eps", sep='')
-    postscript(output.file, title = output.title,
-               paper = "special", horizontal=F, onefile=F,
-               width=4.5, height=4.5, 
-               family = "Helvetica" ## "Times"
-               )
+for (k in seq_along(output.files)) {
+  if (single.plot) {
+    output.title <- output.files
   } else {
-    output.file <- paste(filter, output.file, ".pdf", sep='')
-    pdf(output.file, title = output.title,
-        width = 4.5, height = 4.5, family = "Helvetica")
-  }
-  eafplot (data, attsurfs = attsurfs, percentiles = percentiles,
-           xlab = xlab, ylab = ylab, las = 0, log = log,
-           type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
-           extra.points=extra.points, xlim=xlim, ylim=ylim,
-           legend.pos = legend.pos, extra.legend = extra.legend,
-           legend.txt = legend.txt, maximise = maximise)
-  dev.null <- dev.off()
-  cat ("Plot: ", output.file, "\n", sep='')
-} else {
-  for (k in seq_along(epsfiles)) {
     output.title <- titles[k]
-    if (flag.eps) {
-      output.file <- paste(filter, epsfiles[k], ".eps", sep='')
+  }
+  output.file <- output.files[k]
+  if (flag.eps) {
+      output.file <- paste(filter, output.file, ".eps", sep='')
       postscript(output.file, title = output.title,
                  paper = "special", horizontal=F, onefile=F,
-                 width=4.5, height=4.5, 
-                 family = "Helvetica" ## "Times"
-                 )
-    } else {
-      output.file <- paste(filter, epsfiles[k], ".pdf", sep='')
-      pdf(output.file, title = output.title,
-          width=4.5, height=4.5,
-          family = "Helvetica")
-    }
-    eafplot.default (data[[k]][,1:2], sets = data[[k]][,3],
-                     attsurfs = attsurfs[[k]], percentiles = percentiles,
-                     xlab = xlab, ylab = ylab, las = 0, log = log,
-                     type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
-                     extra.points=extra.points, xlim=xlim, ylim=ylim,
-                     legend.pos = legend.pos, extra.legend = extra.legend,
-                     maximise = maximise)
-    dev.null <- dev.off()
-    cat ("Plot: ", output.file, "\n", sep='')
+                 width=4.5, height=4.5)
+  } else {
+      output.file <- paste(filter, output.file, ".pdf", sep='')
+      pdf(output.file, title = output.title, width=4.5, height=4.5)
   }
+  if (single.plot) {
+    eafplot (data, attsurfs = attsurfs, percentiles = percentiles,
+             xlab = xlab, ylab = ylab, las = 0, log = log,
+             type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
+             extra.points = extra.points, extra.pch = extra.pch, extra.col = extra.col,
+             xlim = xlim, ylim = ylim,
+             legend.pos = legend.pos, extra.legend = extra.legend,
+             legend.txt = legend.txt, maximise = maximise)
+    } else {
+      eafplot.default (data[[k]][,1:2], sets = data[[k]][,3],
+                       attsurfs = attsurfs[[k]], percentiles = percentiles,
+                       xlab = xlab, ylab = ylab, las = 0, log = log,
+                       type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
+                       extra.points = extra.points, extra.pch = extra.pch, extra.col = extra.col,
+                       xlim=xlim, ylim=ylim,
+                       legend.pos = legend.pos, extra.legend = extra.legend,
+                       maximise = maximise)
+    }
+  dev.null <- dev.off()
+  cat ("Plot: ", output.file, "\n", sep='')
 }
 
 EOFR
@@ -551,11 +541,12 @@ close R;
 ? print "$progname: generated R script: $Rfile\n" 
 : unlink($Rfile);
 
-# FIXME: This doesn't work with multiple output files.
 if ($flag_crop and not $flag_eps) {
     my ($tmpfh, $tmpfilename) = tempfile();
-    execute ("pdfcrop $output_file $tmpfilename");
-    execute ("mv $tmpfilename $output_file");
+    foreach my $outfile (@output_files) {
+        execute ("pdfcrop ${outfile}.pdf $tmpfilename");
+        execute ("mv $tmpfilename ${outfile}.pdf");
+    }
 }
 
 exit 0;

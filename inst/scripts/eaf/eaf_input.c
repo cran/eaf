@@ -6,7 +6,7 @@
 
                  Copyright (c) 2005, 2006, 2007, 2008
                   Carlos Fonseca <cmfonsec@ualg.pt>
-          Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+          Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
                                    
  This program is free software (software libre); you can redistribute
  it and/or modify it under the terms of the GNU General Public License
@@ -42,6 +42,21 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include "eaf_io.h"
+
+#ifndef ignore_unused_result
+#define ignore_unused_result(X)  do { if(X) {}} while(0);
+#endif
+
+/* skip full lines starting with # */
+static inline int skip_comment_line (FILE * instream)
+{
+    char newline[2];
+    if (!fscanf (instream, "%1[#]%*[^\n]", newline))
+        /* and whitespace */
+        ignore_unused_result (fscanf (instream, "%*[ \t\r]"));
+    return fscanf (instream, "%1[\n]", newline);
+}
+
 
 #define objective_t int
 #define objective_t_scanf_format "%d"

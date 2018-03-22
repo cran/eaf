@@ -14,6 +14,12 @@
 #define DEBUG1(X) (void)0
 #endif
 
+#if DEBUG >= 2
+#define DEBUG2(X) X;(void)0
+#else  
+#define DEBUG2(X) (void)0
+#endif
+
 #define CHECK_ARG_IS_INT_VECTOR(A)					\
     if (!isInteger(A) || !isVector(A))					\
 	error("Argument '" #A "' is not an integer vector");
@@ -82,7 +88,6 @@ static eaf_t **
 compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns, 
                     const int *percentile, int nlevels)
 {
-    eaf_t **eaf;
     int k;
     SEXP_2_INT_VECTOR(CUMSIZES, cumsizes, cumsizes_len);
     if (cumsizes_len < nruns)
@@ -104,9 +109,12 @@ compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns,
 
     double *data = REAL(DATA);
 
-    DEBUG1(
-        Rprintf ("attsurf ({(%f,%f)...}, %d, { %d",
-                 data[0], data[1], nobj, cumsizes[0]);
+    DEBUG2(
+        Rprintf ("attsurf ({(%f, %f", data[0], data[1]);
+        for (k = 2; k < nobj; k++) {
+            Rprintf (", %f", data[k]);
+        }
+        Rprintf (")...}, %d, { %d", nobj, cumsizes[0]);
         for (k = 1; k < nruns; k++) {
             Rprintf (", %d", cumsizes[k]);
         }
@@ -117,10 +125,10 @@ compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns,
         Rprintf ("}, %d)\n", nlevels);
         );
 
-    eaf = attsurf (data, nobj, cumsizes, nruns, level, nlevels);
+    eaf_t **eaf = attsurf (data, nobj, cumsizes, nruns, level, nlevels);
     free (level);
 
-    DEBUG1(
+    DEBUG2(
         Rprintf ("eaf computed\n");
         for (k = 0; k < nlevels; k++) {
             Rprintf ("eaf[%d] = %d\n", k, eaf[k]->size);
@@ -129,45 +137,41 @@ compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns,
     return eaf;
 }
 
-SEXP compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
-                   SEXP PERCENTILES);
+extern SEXP compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
+                          SEXP PERCENTILES);
 
 SEXP
-compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
-              SEXP PERCENTILE)
+compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS, SEXP PERCENTILE)
 {
-    eaf_t **eaf;
-    int k;
     SEXP_2_INT(NOBJ, nobj);
     SEXP_2_INT(NRUNS, nruns);
     SEXP_2_INT_VECTOR(PERCENTILE, percentile, nlevels);
 
-    eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, percentile, nlevels);
+    eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, percentile, nlevels);
 
-    int totalpoints = 0;
-    for (k = 0; k < nlevels; k++) {
-        totalpoints += eaf[k]->size;
-    }
+    int totalpoints = eaf_totalpoints (eaf, nlevels);
 
     SEXP mat;
-    double *rmat;
     PROTECT(mat = allocMatrix(REALSXP, totalpoints, nobj + 1));
-    rmat = REAL(mat);
+    double * rmat = REAL(mat);
 
     int pos = 0;
+    int k;
     for (k = 0; k < nlevels; k++) {
         int npoints = eaf[k]->size;
-        int i;
 
-        DEBUG1(
+        DEBUG2(
             int totalsize = npoints * nobj;
             Rprintf ("totalpoints eaf[%d] = %d\n", k, totalsize)
             );
 
+        int i;
         for (i = 0; i < npoints; i++) {
-            rmat[pos] = eaf[k]->data[i * nobj];
-            rmat[pos + totalpoints] = eaf[k]->data[1 + i * nobj];
-            rmat[pos + 2 * totalpoints] = percentile[k];
+            int j;
+            for (j = 0; j < nobj; j++) {
+                rmat[pos + j * totalpoints] = eaf[k]->data[j + i * nobj];
+            }
+            rmat[pos + nobj * totalpoints] = percentile[k];
             pos++;
         }
         eaf_delete (eaf[k]);
@@ -185,44 +189,40 @@ SEXP
 compute_eafdiff_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
                   SEXP INTERVALS)
 {
-    eaf_t **eaf;
     int k;
     SEXP_2_INT(NOBJ, nobj);
     SEXP_2_INT(NRUNS, nruns);
     SEXP_2_INT(INTERVALS, intervals);
 
-    eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
+    eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
 
     int nsets1 = nruns / 2;
     int nsets2 = nruns - nsets1;
+    int totalpoints = eaf_totalpoints (eaf, nruns);
 
-    int totalpoints = 0;
-    for (k = 0; k < nruns; k++) {
-        totalpoints += eaf[k]->size;
-    }
     SEXP mat;
-    double *rmat;
     PROTECT(mat = allocMatrix(REALSXP, totalpoints, nobj + 1));
-    rmat = REAL(mat);
+    double *rmat = REAL(mat);
 
     int pos = 0;
     for (k = 0; k < nruns; k++) {
         int npoints = eaf[k]->size;
-        int i;
+        int i, j;
 
-        DEBUG1(
+        DEBUG2(
             int totalsize = npoints * nobj;
             Rprintf ("totalpoints eaf[%d] = %d\n", k, totalsize)
             );
 
+        // FIXME: Find the most efficient order of the loop.
         for (i = 0; i < npoints; i++) {
-            rmat[pos] = eaf[k]->data[i * nobj];
-            rmat[pos + totalpoints] = eaf[k]->data[1 + i * nobj];
+            for (j = 0; j < nobj; j++) {
+                rmat[pos + j * totalpoints] = eaf[k]->data[j + i * nobj];
+            }
             pos++;
         }
     }
-
-    pos += totalpoints;
+    pos += (nobj - 1) * totalpoints;
     for (k = 0; k < nruns; k++) {
         int i;
         int npoints = eaf[k]->size;
@@ -230,7 +230,7 @@ compute_eafdiff_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
             int count_left;
             int count_right;
             attained_left_right (eaf[k]->attained + i * eaf[k]->nruns,
-                                 nruns/2, nruns, &count_left, &count_right);
+                                 nruns / 2, nruns, &count_left, &count_right);
             rmat[pos] = intervals * (double) ((count_left / (double) nsets1) - 
                                               (count_right / (double) nsets2));
             pos++;
@@ -250,6 +250,7 @@ static int polygon_len  (const double *src, int nobj)
     src += nobj;
     return (src - src_orig) / nobj;
 }
+
 static int polygon_copy (double *dest, int start, int nrows, const double *src)
 {
     int len = start;
@@ -273,13 +274,12 @@ compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
 {
     int nprotected = 0;
 
-    eaf_t **eaf;
     int k;
     SEXP_2_INT(NOBJ, nobj);
     SEXP_2_INT(NRUNS, nruns);
     SEXP_2_INT(INTERVALS, intervals);
 
-    eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
+    eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
 
     eaf_polygon_t *p = eaf_compute_area (eaf, nruns);
 
@@ -291,7 +291,7 @@ compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
 
     int ncol = vector_int_size(&p->col);
 
-    DEBUG1(Rprintf ("ncol: %d\n", ncol));
+    DEBUG2(Rprintf ("ncol: %d\n", ncol));
 
     int left_ncol = 0, right_ncol = 0;
     int left_len = 0, right_len = 0;
@@ -301,10 +301,10 @@ compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
     double * p_xy = vector_objective_begin(&p->xy);
     for (k = 0; k < ncol; k++) {
         double color = vector_int_at(&p->col, k);
+        color = intervals * color / (double) division;
         int len = polygon_len (p_xy, nobj);
         p_xy += len * nobj;
-        color = intervals * color / (double) division;
-        DEBUG1(Rprintf ("color: %d, len = %d\n", color, len));
+        DEBUG2(Rprintf ("color: %d, len = %d\n", color, len));
         if (color >= 1) {
             left_len += len;
             left_ncol++;
@@ -315,7 +315,7 @@ compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
         vector_int_set(&p->col, k, color);
     }
 
-    DEBUG1(Rprintf ("left_len: %d, right_len: %d, left_ncol: %d, right_ncol: %d\n", 
+    DEBUG2(Rprintf ("left_len: %d, right_len: %d, left_ncol: %d, right_ncol: %d\n", 
                     left_len, right_len, left_ncol, right_ncol));
 
     /* Now assign points to each side. */

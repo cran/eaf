@@ -9,6 +9,7 @@
 #ifndef DEBUG
 #define DEBUG 0
 #endif
+
 /*
  * Read an array of objective values from a stream.  This function may
  * be called repeatedly to add data to an existing data set.
@@ -27,13 +28,12 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     int nsets    = *nsets_p;     /* number of data sets.                 */
     objective_t *data = *data_p;
 
-    objective_t number;
-
     int retval;			/* return value for fscanf */
     char newline[2];
     int ntotal;			/* the current element of (*datap) */
 
-    int column, line;
+    int column = 0,
+        line = 0;
 
     int datasize;
     int sizessize;
@@ -43,8 +43,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     if (filename == NULL) {
         instream = stdin;
         filename = "<stdin>"; /* used to diagnose errors.  */
-    }
-    else if (NULL == (instream = fopen (filename,"rb"))) {
+    } else if (NULL == (instream = fopen (filename,"rb"))) {
         errprintf ("%s: %s", filename, strerror (errno));
         return (ERROR_FOPEN);
     }
@@ -64,17 +63,11 @@ read_objective_t_data (const char *filename, objective_t **data_p,
     cumsizes = realloc (cumsizes, sizessize * sizeof(int));
     data = realloc (data, datasize * sizeof(objective_t));
 
-    column = 0;
-    line = 0;
-
     /* skip over leading whitespace, comments and empty lines.  */
     do { 
         line++;
         /* skip full lines starting with # */
-        if (!fscanf (instream, "%1[#]%*[^\n]", newline))
-            /* and whitespace */
-            fscanf (instream, "%*[ \t\r]");
-        retval = fscanf (instream, "%1[\n]", newline);
+        retval = skip_comment_line (instream);
     } while (retval == 1);
 
     if (retval == EOF) { /* faster than !feof() */
@@ -99,13 +92,18 @@ read_objective_t_data (const char *filename, objective_t **data_p,
 	    do {
                 /* new column */
                 column++; 
-
-                if (fscanf (instream, objective_t_scanf_format, &number) != 1){
+                objective_t number;
+                if (fscanf (instream, objective_t_scanf_format, &number) != 1) {
                     char buffer[64];
-                    fscanf (instream, "%60[^ \t\r\n]", buffer);
-                    errprintf ("%s: line %d column %d: "
-                               "could not convert string `%s' to double", 
-                               filename, line, column, buffer);
+                    if (fscanf (instream, "%60[^ \t\r\n]", buffer) == EOF) {
+                        errprintf ("%s: line %d column %d: "
+                                   "read error or EOF", 
+                                   filename, line, column);
+                    } else {
+                        errprintf ("%s: line %d column %d: "
+                                   "could not convert string `%s' to double", 
+                                   filename, line, column, buffer);
+                    }
                     errorcode = ERROR_CONVERSION;
                     goto read_data_finish;
                 }
@@ -122,7 +120,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
                         cumsizes[nsets], nsets, (double)number);
 #endif
                 /* skip possible trailing whitespace */
-                fscanf (instream, "%*[ \t\r]");
+                ignore_unused_result (fscanf (instream, "%*[ \t\r]"));
                 retval = fscanf (instream, "%1[\n]", newline);
 	    } while (retval == 0);
             
@@ -147,10 +145,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
 
             /* look for an empty line */
             line++;
-            if (!fscanf (instream, "%1[#]%*[^\n]", newline))
-                fscanf (instream, "%*[ \t\r]");
-            retval = fscanf (instream, "%1[\n]", newline);
-
+            retval = skip_comment_line (instream);
 	} while (retval == 0);
 
 	nsets++; /* new data set */
@@ -162,9 +157,7 @@ read_objective_t_data (const char *filename, objective_t **data_p,
         /* skip over successive empty lines */
         do { 
             line++;
-            if (!fscanf (instream, "%1[#]%*[^\n]", newline))
-                fscanf (instream, "%*[ \t\r]");
-            retval = fscanf (instream, "%1[\n]", newline);
+            retval = skip_comment_line (instream);
         } while (retval == 1);
 
     } while (retval != EOF); /* faster than !feof() */

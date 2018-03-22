@@ -1,3 +1,28 @@
+1.8
+
+* Development version moved to GitHub: https://github.com/MLopez-Ibanez/eaf
+
+* Remove leading zeros from version number.
+
+* New parameters left.panel.last and right.panel.last of eafdiffplot.
+
+* Export and document function 'eafs' to compute EAFs.
+
+* eafdiff.pl: Handle --colors=, --intervals=.
+ 
+* Fix crash in eafplot if 'sets' is a vector of strings.
+
+* Reset layout in eafdiffplot.
+
+* Compute eaf for 3D.
+
+* Added testthat testing framework.
+
+* The documentation is now generated with Roxygen2.
+
+* Entry points to C code are now properly registered.
+
+
 1.07
 
 * Silence CRAN warning for GNU extensions in Makefiles in
@@ -30,7 +55,7 @@
   The idea for the algorithm to compute the areas was provided by
   Carlos M. Fonseca.  The implementation uses R polygons, which some
   PDF viewers may have trouble rendering correctly (See
-  http://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders).
+  https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders).
   Plots will look correct when printed. To get the previous behaviour
   use eafdiffplot(, type = "point").
   

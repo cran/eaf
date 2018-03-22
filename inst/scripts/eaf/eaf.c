@@ -5,9 +5,11 @@
 
  ---------------------------------------------------------------------
 
-                    Copyright (c) 2006, 2007, 2008
-                  Carlos Fonseca <cmfonsec@ualg.pt>
-          Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+    Copyright (c) 2005
+            Carlos M. Fonseca <cmfonsec@ualg.pt>
+    Copyright (c) 2006, 2007, 2008, 2015
+            Carlos M. Fonseca <cmfonsec@dei.uc.pt>
+            Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 
  This program is free software (software libre); you can redistribute
  it and/or modify it under the terms of the GNU General Public License
@@ -47,19 +49,15 @@ static int compare_x_asc (const void *p1, const void *p2)
     objective_t x1 = **(objective_t **)p1;
     objective_t x2 = **(objective_t **)p2;
 	
-    return (x1 != x2)
-        ? ((x1 < x2) ? -1 : 1)
-        : 0;
+    return (x1 < x2) ? -1 : ((x1 > x2) ? 1 : 0);
 }
 
 static int compare_y_desc (const void *p1, const void *p2)
 {
-	objective_t y1 = *(*(objective_t **)p1+1);
-	objective_t y2 = *(*(objective_t **)p2+1);
+    objective_t y1 = *(*(objective_t **)p1+1);
+    objective_t y2 = *(*(objective_t **)p2+1);
 	
-	return (y1 != y2)
-            ? ((y1 > y2) ? -1 : 1)
-            : 0;
+    return (y1 > y2) ? -1 : ((y1 < y2) ? 1 : 0);
 }
 
 eaf_t * eaf_create (int nobj, int nruns, int npoints)
@@ -85,14 +83,11 @@ void eaf_delete (eaf_t * eaf)
     free (eaf);
 }
 
-static void
-eaf_store_point (eaf_t * eaf, objective_t x, objective_t y, 
-                 const int *save_attained)
+objective_t *
+eaf_store_point_help (eaf_t * eaf, int nobj,
+                      const int *save_attained)
 {
-    int k;
-    objective_t * pos;
     const int nruns = eaf->nruns;
-    const int nobj = eaf->nobj;
 
     if (eaf->size == eaf->maxsize) {
         eaf_assert (eaf->size < INT_MAX / 2);
@@ -104,19 +99,27 @@ eaf_store_point (eaf_t * eaf, objective_t x, objective_t y,
                              sizeof(objective_t) * nobj * eaf->maxsize);
         eaf_assert(eaf->data);
     }
-    pos = eaf->data + nobj * eaf->size;
-    pos[0] = x;
-    pos[1] = y;
-    /* We convert from int to bool. */
-    for (k = 0; k < nruns; k++) {
+    /* We convert from int to bool to hopefully save space. */
+    for (int k = 0; k < nruns; k++) {
         eaf->attained[(nruns * eaf->size) + k] = (bool) save_attained[k];
     }
+    return eaf->data + nobj * eaf->size;
+}
+
+static void
+eaf_store_point_2d (eaf_t * eaf, objective_t x, objective_t y, 
+                    const int *save_attained)
+{
+    const int nobj = 2;
+    objective_t * pos = eaf_store_point_help (eaf, nobj, save_attained);
+    pos[0] = x;
+    pos[1] = y;
     eaf->size++;
 }
 
 static void
 eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file, 
-                objective_t x, objective_t y, 
+                const objective_t *x, int nobj,
                 const bool *attained, int nruns)
 {
     int count1 = 0;
@@ -125,7 +128,10 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
 
     if (coord_file) {
         fprintf (coord_file, point_printf_format "\t" point_printf_format,
-                 (double)x, (double)y);
+                 (double)x[0], (double)x[1]);
+        for (k = 2; k < nobj; k++)
+            fprintf (coord_file, "\t" point_printf_format, (double)x[k]);
+
         fprintf (coord_file, 
                  (coord_file == indic_file) || (coord_file == diff_file)
                  ? "\t" : "\n");
@@ -150,25 +156,25 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
         fprintf (diff_file,"%d\t%d\n", count1, count2);
 }
 
+/* Print one attainment surface of the EAF.  */
 void
-eaf_print (eaf_t * eaf, FILE *coord_file,  FILE *indic_file, FILE *diff_file)
+eaf_print_attsurf (eaf_t * eaf, FILE *coord_file,  FILE *indic_file, FILE *diff_file)
 {
     int i;
     for (i = 0; i < eaf->size; i++) {
-        objective_t *p = eaf->data + i * eaf->nobj;
+        const objective_t *p = eaf->data + i * eaf->nobj;
         eaf_print_line (coord_file, indic_file, diff_file,
-                        p[0], p[1], eaf->attained + i * eaf->nruns, eaf->nruns);
+                        p, eaf->nobj, eaf->attained + i * eaf->nruns, eaf->nruns);
     }
 }
 
 /* 
-   attsurf: compute attainment surfaces from points in objective space,
-            using dimension sweeping.
+   eaf2d: compute attainment surfaces from points in objective space,
+          using dimension sweeping.
 
    Input arguments:
         data : a pointer to the data matrix, stored as a linear array of 
                objective_t in row major order.
-        nobj : the number of objectives (must be 2 in this implementation).
         cumsize : an array containing the cumulative number of rows in each 
                   non-dominated front (must be non-decreasing).
         nruns :	the number of independent non-dominated fronts.
@@ -181,21 +187,18 @@ eaf_print (eaf_t * eaf, FILE *coord_file,  FILE *indic_file, FILE *diff_file)
 */
 
 eaf_t **
-attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
-         const int *attlevel, const int nlevels)
+eaf2d (const objective_t *data, const int *cumsize, int nruns,
+       const int *attlevel, const int nlevels)
 {
+    const int nobj = 2;
     eaf_t **eaf;
     const objective_t **datax, **datay; /* used to access the data sorted
                                            according to x or y */
     
-    int ntotal = cumsize[nruns - 1]; /* total number of points in data */
+    const int ntotal = cumsize[nruns - 1]; /* total number of points in data */
     int *runtab;	
     int *attained, nattained, *save_attained;
     int k, j, l;
-
-    if (nobj != 2) {
-        fatalprintf ("this implementation only supports two dimensions.\n");
-    }
 
     /* Access to the data is made via two arrays of pointers: ix, iy
        These are sorted, to allow for dimension sweeping */
@@ -253,7 +256,7 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
         int run;
 
         nattained = 0;
-        for (k = 0; k < nruns; attained[k++] = 0);
+        for (k = 0; k < nruns; k++) attained[k] = 0;
 
         /* Start at upper-left corner */
         run = runtab[(datax[x] - data) / nobj];
@@ -307,8 +310,8 @@ attsurf (const objective_t *data, int nobj, const int *cumsize, int nruns,
 
             eaf_assert (nattained < level);
 
-            eaf_store_point (eaf[l], datax[x][0], datay[y-1][1],
-                             save_attained);
+            eaf_store_point_2d (eaf[l], datax[x][0], datay[y - 1][1],
+                                save_attained);
 
         } while (x < ntotal - 1 && y < ntotal);
     }
@@ -350,12 +353,12 @@ eaf_compute_area_new (eaf_t **eaf, int nlevels)
     int _poly_size_check = 0;
     eaf_polygon_t * polygon;
     int *color;
-    int max_size = 0;
     int nruns = eaf[0]->nruns;
     int nobj = eaf[0]->nobj;
 
     eaf_assert(nruns % 2 == 0);
 
+    int max_size = 0;
     for (int a = 0; a < nlevels; a++) {
         if (max_size < eaf[a]->size)
             max_size = eaf[a]->size;
@@ -526,7 +529,7 @@ eaf_compute_area_new (eaf_t **eaf, int nlevels)
 }
 
 /* FIXME: This version does not care about intersections, which is
-   much siimpler, but it produces artifacts when plotted with the
+   much simpler, but it produces artifacts when plotted with the
    polygon function in R.  */
 eaf_polygon_t *
 eaf_compute_area_old (eaf_t **eaf, int nlevels)

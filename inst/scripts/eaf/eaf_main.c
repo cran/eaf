@@ -7,7 +7,7 @@
 
                     Copyright (c) 2006, 2007, 2008
                   Carlos Fonseca <cmfonsec@ualg.pt>
-          Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+          Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 
  This program is free software (software libre); you can redistribute
  it and/or modify it under the terms of the GNU General Public License
@@ -88,7 +88,7 @@ static void version(void)
     printf(
 "Copyright (C) 2009\n"
 "Carlos Fonseca <cmfonsec@ualg.pt>\n"
-"Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>\n"
+"Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>\n"
 "\n"
 "This is free software, and you are welcome to redistribute it under certain\n"
 "conditions.   See the GNU General Public License for details.   There is NO\n"
@@ -131,14 +131,12 @@ static int read_ints (int *levels, char *str)
     return k - 1;
 }
 
-/* FIXME: This function should be called eaf_print, and the function
-   that prints each level should be attsurf_print. */
-void attsurf_print (eaf_t **eaf, int nlevels,
-                    FILE *coord_file, FILE *indic_file, FILE *diff_file)
+void eaf_print (eaf_t **eaf, int nlevels,
+                FILE *coord_file, FILE *indic_file, FILE *diff_file)
 {
     int k;
     for (k = 0; k < nlevels; k++) {
-        eaf_print (eaf[k], coord_file, indic_file, diff_file);
+        eaf_print_attsurf (eaf[k], coord_file, indic_file, diff_file);
         if (coord_file)
             fprintf (coord_file, "\n");
         else if (indic_file)
@@ -153,15 +151,15 @@ void read_input_data (const char *filename, objective_t **data_p,
 {
     int error = read_objective_t_data (filename, data_p, nobjs_p, cumsizes_p, nsets_p);
     switch (error) {
-    case READ_INPUT_FILE_EMPTY:
-    case READ_INPUT_WRONG_INITIAL_DIM:
-        break;
-    case ERROR_FOPEN:
-    case ERROR_CONVERSION:
-    case ERROR_COLUMNS:
-        exit (EXIT_FAILURE);
-    default:
-        break;
+      case READ_INPUT_FILE_EMPTY:
+      case READ_INPUT_WRONG_INITIAL_DIM:
+          break;
+      case ERROR_FOPEN:
+      case ERROR_CONVERSION:
+      case ERROR_COLUMNS:
+          exit (EXIT_FAILURE);
+      default:
+          break;
     }
 }
 
@@ -311,13 +309,13 @@ int main(int argc, char *argv[])
     if (optind < argc) {
         for (k = optind; k < argc; k++) {
             if (strcmp (argv[k],"-")) 
-                read_objective_t_data (argv[k], &data, &nobj, 
-                                       &cumsizes, &nruns);
+                read_input_data (argv[k], &data, &nobj, 
+                                 &cumsizes, &nruns);
             else
-                read_objective_t_data (NULL, &data, &nobj, &cumsizes, &nruns);
+                read_input_data (NULL, &data, &nobj, &cumsizes, &nruns);
         }
     } else
-        read_objective_t_data (NULL, &data, &nobj, &cumsizes, &nruns);
+        read_input_data (NULL, &data, &nobj, &cumsizes, &nruns);
     
 
     if (coord_filename) {
@@ -419,9 +417,8 @@ int main(int argc, char *argv[])
     }   
 
     eaf = attsurf (data, nobj, cumsizes, nruns, level, nlevels);
-
-    attsurf_print (eaf, nlevels, 
-                   coord_file, indic_file, diff_file);
+    eaf_print (eaf, nlevels, 
+               coord_file, indic_file, diff_file);
 
     fclose (coord_file);
     if (indic_file && indic_file != coord_file)

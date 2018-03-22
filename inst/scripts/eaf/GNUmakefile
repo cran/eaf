@@ -7,7 +7,7 @@ VERSION = 0.1svn$(SVN_REV)
 
 #                       Copyright (c) 2007, 2008
 #                  Carlos Fonseca <cmfonsec@ualg.pt>
-#             Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+#             Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 
 # This program is free software (software libre); you can redistribute
 # it and/or modify it under the terms of the GNU General Public
@@ -34,15 +34,15 @@ VERSION = 0.1svn$(SVN_REV)
 # write a scientific paper describing research that made substantive
 # use of this program, it is your obligation as a scientist to
 # acknowledge its use.  Moreover, as a personal note, I would
-# appreciate it if you would email <manuel.lopez-ibanez@ulb.ac.be>
+# appreciate it if you would email <manuel.lopez-ibanez@manchester.ac.uk>
 # with citations of papers referencing this work so I can mention them
 # to my funding agent and tenure committee.
 #-----------------------------------------------------------------------
-DEBUG=1
+DEBUG=0
 BINDIR := ./
 
-OBJS =  eaf.o eaf_input.o eaf_main.o
-HEADERS = eaf.h eaf_io_priv.h eaf_io.h cvector.h
+OBJS =  eaf.o eaf_input.o eaf_main.o eaf3d.o avl.o
+HEADERS = eaf.h eaf_io_priv.h eaf_io.h cvector.h avl.h
 
 EAFEXE=eaf
 
@@ -59,10 +59,10 @@ ECHO = @echo "$(1)"
 
 ## Do we have svnversion?
 ifeq ($(shell sh -c 'which svnversion 1> /dev/null 2>&1 && echo y'),y)
-    ## Is this a working copy?
-    ifneq ($(shell sh -c 'LC_ALL=C svnversion -n .'),exported)
-      $(shell sh -c 'svnversion -n . > svn_version')
-    endif
+  ## Is this a working copy?
+  ifeq ($(shell sh -c 'LC_ALL=C svnversion -n . | grep -q ^[0-9] && echo y'),y)
+    $(shell sh -c 'svnversion -n . > svn_version')
+  endif
 endif
 ## Set version information:
 SVN_REV = $(shell sh -c 'cat svn_version 2> /dev/null')
@@ -80,8 +80,7 @@ override CFLAGS += $(OPT_CFLAGS) -DDEBUG=$(DEBUG) \
 
 default: $(BINDIR)/$(EAFEXE) 
 
-$(BINDIR)/$(EAFEXE) : OBJS=eaf.o eaf_input.o eaf_main.o
-$(BINDIR)/$(EAFEXE) : eaf.o eaf_input.o eaf_main.o
+$(BINDIR)/$(EAFEXE) : $(OBJS)
 
 $(BINDIR)/$(EAFEXE) :
 	@mkdir -p $(BINDIR)

@@ -6,7 +6,7 @@
 
                     Copyright (c) 2006, 2007, 2008
                   Carlos Fonseca <cmfonsec@ualg.pt>
-          Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+          Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 
  This program is free software (software libre); you can redistribute
  it and/or modify it under the terms of the GNU General Public License
@@ -89,22 +89,58 @@ typedef struct {
 
 
 void
-eaf_print (eaf_t *,
-           FILE *coord_file,           /* output file (coordinates)           */
-           FILE *indic_file,           /* output file (attainment indicators) */
-           FILE *diff_file             /* output file (difference nruns/2)    */
-    );
+eaf_print_attsurf (eaf_t *,
+                   FILE *coord_file, /* output file (coordinates)           */
+                   FILE *indic_file, /* output file (attainment indicators) */
+                   FILE *diff_file); /* output file (difference nruns/2)    */
 
+eaf_t * eaf_create (int nobj, int nruns, int npoints);
 void eaf_delete (eaf_t * eaf);
+objective_t *
+eaf_store_point_help (eaf_t * eaf, int nobj, const int *save_attained);
+
+static inline int eaf_totalpoints (eaf_t **eaf, int n)
+{
+    int totalpoints = 0;
+    int k;
+    for (k = 0; k < n; k++) {
+        totalpoints += eaf[k]->size;
+    }
+    return totalpoints;
+}
 
 eaf_t **
-attsurf (const objective_t *data,    /* the objective vectors            */
+eaf2d (const objective_t *data,    /* the objective vectors            */
+       const int *cumsize,         /* the cumulative sizes of the runs */
+       int nruns,		   /* the number of runs               */
+       const int *attlevel,        /* the desired attainment levels    */
+       int nlevels                 /* the number of att levels         */
+    );
+
+eaf_t **
+eaf3d (objective_t *data, const int *cumsize, int nruns,
+       const int *attlevel, const int nlevels);
+
+static inline eaf_t **
+attsurf (objective_t *data,    /* the objective vectors            */
          int nobj,                   /* the number of objectives         */
          const int *cumsize,         /* the cumulative sizes of the runs */
          int nruns,		     /* the number of runs               */
          const int *attlevel,        /* the desired attainment levels    */
          int nlevels                 /* the number of att levels         */
-    );
+    )
+{
+    switch (nobj) {
+      case 2:
+          return eaf2d (data, cumsize, nruns, attlevel, nlevels);
+          break;
+      case 3:
+          return eaf3d (data, cumsize, nruns, attlevel, nlevels);
+          break;
+      default:
+          fatalprintf ("this implementation only supports two or three dimensions.\n");
+    }
+}
 
 static inline void
 fprint_set (FILE *stream, const objective_t **data, int ntotal)

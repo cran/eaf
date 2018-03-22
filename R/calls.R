@@ -46,34 +46,44 @@
 #    http://google-styleguide.googlecode.com/svn/trunk/google-r-style.html
 #
 ################################################################################
-## for development only
-##require(lattice)
-#setwd("~/svn/Code/EAF")
-#require(modeltools)
-#source("R/common.R")
-#source("R/EAF.R")
-#dyn.load(file.path(".", paste("src/Reaf", .Platform$dynlib.ext, sep="")))
-##paste("src/eaf",.Platform$dynlib.ext,sep=""))
+
+#' Plot the Empirical Attainment Function for two objectives generic
+#' 
+#' Computes and plots the Empirical Attainment Function, either as
+#' attainment surfaces for certain percentiles or as points.
+#'
+#' This function can be used to plot random sets of points like those obtained
+#' by different runs of biobjective stochastic optimization algorithms.  An EAF
+#' curve represents the boundary separating points that are known to be
+#' attainable (that is, dominated in Pareto sense) in at least a fraction
+#' (quantile) of the runs from those that are not. The median EAF represents
+#' the curve where the fraction of attainable points is 50\%.  In single
+#' objective optimization the function can be used to plot the profile of
+#' solution quality over time of a collection of runs of a stochastic optimizer.
+#' 
+#' @param x Either a matrix of data values, or a data frame, or a list of
+#'     data frames of exactly three columns.
+#'
+#' @keywords graphs
+#' @export
+eafplot <- function(x, ...) UseMethod("eafplot")
 
 
-### the top-level convenience function
-eafplot <- function(x,...)
-{
-  UseMethod("eafplot");
-}
-
-
-eafplot.formula <-
-  function(x, data = data.frame(), groups = NULL, subset = NULL,
-           percentiles=NULL,include.extremes=FALSE, ...)
+#' @describeIn eafplot Formula interface
+#'
+#'@param formula A formula of the type: \code{time + cost ~ run | instance}
+#'     will draw \code{time} on the x-axis and \code{cost} on the y-axis. If \code{instance} is
+#'     present the plot is conditional to the instances.
+#' 
+#'@param data Dataframe containing the fields mentioned in the formula and in groups.
+#'@export
+eafplot.formula <- function(formula, data, groups = NULL, subset = NULL, ...)
 {
   ## formula of type time+cost~run|inst, groups=alg
-  if (missing(x))
+  if (missing(formula))
     stop("formula missing")
-
-  formula <- x
-
-  if ((length(formula) != 3L) || (length(formula[[2L]]) !=3L))
+ 
+  if ((length(formula) != 3L) || (length(formula[[2L]]) != 3L))
     stop("incorrect specification for 'formula'")
 
   mf <- modeltools::ModelEnvFormula(formula = formula, data = data,
@@ -83,12 +93,11 @@ eafplot.formula <-
   ### extract data from the ModelEnv object
   points <- mf@get("response")
   sets <- mf@get("input")
-  if (length(mf@formula)==3)
-    cond<-as.list(mf@get("blocks"))
-  else
-    cond<-NULL
+  cond <- NULL
+  if (length(mf@formula) == 3L)
+    cond <- as.list(mf@get("blocks"))
+
   groups <- eval(substitute(groups), data, environment(formula))
-  #subset <- eval(substitute(subset), data, environment(formula))
 
   if (!is.null(groups) && !is.factor(groups))
     stop("groups must be a factor")
@@ -126,67 +135,77 @@ eafplot.formula <-
     #if (subscripts)
     #   panel.args[[packet.number]]$subscripts <-
     #                   subscr[id]
-
-    cond.current.level <-
-      .cupdate(cond.current.level,
-               cond.max.level)
+    cond.current.level <- .cupdate(cond.current.level, cond.max.level)
   }
   # FIXME: I don't think this is doing the right thing.
-  op <- par(mfrow=.check.layout(NULL,cond.max.level)[2:3])
+  op <- par(mfrow = .check.layout(NULL,cond.max.level)[2:3])
+  on.exit(par(op))
   for (i in seq_len(length(panel.args))) {
     eafplot.default(panel.args[[i]]$points,
                     panel.args[[i]]$sets,
                     panel.args[[i]]$groups,
-                    percentiles, ...)
+                    ...)
   }
-  par(op)
   invisible()
 }
 
 
-
-eafplot.list<-function(x,...) {
+#' @describeIn eafplot List interface for lists of data.frames
+#' 
+#'@export 
+eafplot.list <- function(x,...)
+{
   if (!is.list(x))
     stop("'x' must be a list of data.frames with exactly three columns")
 
-  DT<-data.frame()
+  DT <- data.frame()
   if (!is.null(names(x)))
-    groups<-names(x)
+    groups <- names(x)
   else
-    groups<-c(1:length(x))
+    groups <- 1:length(x)
   for (i in seq_len(length(x)) ) {
     if (!is.data.frame(x[[i]]))
       stop("Each element of the list must be a data.frame with exactly three columns.")
-    DT<-rbind(DT,data.frame(x[[i]],groups=groups[i]))
+    DT <- rbind(DT, data.frame(x[[i]], groups = groups[i]))
   }
-  eafplot(as.matrix(DT[,c(1,2)]),as.numeric(DT[,3]),as.factor(DT[,4]),...)
+  eafplot(as.matrix(DT[,c(1,2)]), as.numeric(as.factor(DT[,3])), as.factor(DT[,4]),...)
 }
 
-
+#' @describeIn eafplot Data.frame interface
+#'
+#' @param y Either a matrix of data values, or a data frame.
+#' @export
 eafplot.data.frame <- function(x, y = NULL, ...)
 {
+  namex <- deparse(substitute(x))
+  namey <- deparse(substitute(y))
+
+  # FIXME: Why keep x and y as data.frame to convert it here to matrix?
   eafplot.data.frame2 <- function(x, groups, main = DNAME, ...)
     eafplot(as.matrix(x[,c(1,2)]), as.numeric(x[,3]),
             groups = groups, main = main, ...)
-  
-  if (!is.data.frame(x))
-    stop("'x' must be a data.frame with exactly three columns.\n",
-         "  If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
-
-  if (nrow(x) < 1L)
-    stop("not enough (finite) 'x' observations")
-  
+  check.eaf.data.frame <- function(x) {
+    xname <- deparse(substitute(x))
+    if (!is.data.frame(x) || ncol(x) != 3L)
+      stop("'", xname, "' must be a data.frame with exactly three columns.\n",
+           "  If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
+    if (nrow(x) < 1L)
+      stop("not enough (finite) '", xname, "' observations")
+    if (!is.numeric(x[,1]) || !is.numeric(x[,2]))
+      stop("columns 1 and 2 of '", xname, "' must be numeric")
+    if (!is.numeric(x[,3]) && !is.factor(x[,3]))
+      x[,3] <- as.factor(x[,3])
+    return(x)
+  }
+  x <- check.eaf.data.frame(x)
   if (!is.null(y)) {
-    if (!is.data.frame(y))
-      stop("'y' must be a data.frame with exactly three columns")
-    if (nrow(y) < 1L)
-      stop("not enough (finite) 'y' observations")
-    DNAME <- paste(deparse(substitute(x)), "and", deparse(substitute(y)))
-    DT <- rbind(data.frame(x, groups = deparse(substitute(x))),
-                data.frame(y, groups = deparse(substitute(y))))
+    y <- check.eaf.data.frame(y)
+    DNAME <- paste0(namex, " and ", namey)
+    DT <- rbind(data.frame(x, groups = namex),
+                data.frame(y, groups = namey))
     groups <- as.factor(DT[, 4])
   } else {
-    DNAME <- deparse(substitute(x))
+    DNAME <- namex
     DT <- x
     groups <- NULL
   }
