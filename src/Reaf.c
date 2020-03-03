@@ -1,98 +1,15 @@
-#include <R.h>
-#include <Rinternals.h>
-#include <R_ext/Error.h>
-#include <R_ext/Memory.h>
+#include "Rcommon.h"
 #include "eaf.h"
-
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
-#if DEBUG >= 1
-#define DEBUG1(X) X;(void)0
-#else  
-#define DEBUG1(X) (void)0
-#endif
-
-#if DEBUG >= 2
-#define DEBUG2(X) X;(void)0
-#else  
-#define DEBUG2(X) (void)0
-#endif
-
-#define CHECK_ARG_IS_INT_VECTOR(A)					\
-    if (!isInteger(A) || !isVector(A))					\
-	error("Argument '" #A "' is not an integer vector");
-
-/* The C API of R is awfully ugly and unpractical (and poorly
-   documented). These wrappers make it a little more bearable. */
-
-#define Rexp(VAR) Rexp_##VAR
-
-#define new_real_matrix(DOUBLEVAR, DIM1, DIM2)                                 \
-    SEXP Rexp_##DOUBLEVAR; double *DOUBLEVAR;                                  \
-    PROTECT(Rexp_##DOUBLEVAR = allocMatrix(REALSXP, (DIM1), (DIM2)));          \
-    nprotected++; DOUBLEVAR = REAL(Rexp_##DOUBLEVAR)
-
-#define new_real_vector(DOUBLEVAR, DIM)                                        \
-    SEXP Rexp_##DOUBLEVAR; double *DOUBLEVAR;                                  \
-    PROTECT(Rexp_##DOUBLEVAR = allocVector(REALSXP, (DIM)));                   \
-    nprotected++; DOUBLEVAR = REAL(Rexp_##DOUBLEVAR)
-
-#define new_string_vector(VAR, DIM)                                            \
-    SEXP Rexp_##VAR; int Rexp_##VAR##_len = 0;                                 \
-    PROTECT(Rexp_##VAR = allocVector(STRSXP, (DIM)));                          \
-    nprotected++
-
-#define string_vector_push_back(VAR, ELEMENT)                                  \
-    SET_STRING_ELT(Rexp_##VAR, Rexp_##VAR##_len, mkChar(ELEMENT));             \
-    Rexp_##VAR##_len++
-
-#define new_list(LISTVAR, LENGTH)                                              \
-    SEXP Rexp_##LISTVAR; int Rexp_##LISTVAR##_len = 0;                         \
-    PROTECT(Rexp_##LISTVAR = allocVector(VECSXP, (LENGTH)));                   \
-    ++nprotected
-
-#define list_len(VAR) Rexp_##VAR##_len
-
-#define list_push_back(LISTVAR, ELEMENT)                                       \
-    SET_VECTOR_ELT(Rexp_##LISTVAR, Rexp_##LISTVAR##_len, Rexp_##ELEMENT);      \
-    Rexp_##LISTVAR##_len++
-
-#define set_names(VAR, NAMES)                                                  \
-    setAttrib(Rexp_##VAR, R_NamesSymbol, Rexp_##NAMES)
-
-#define set_attribute(VAR, ATTRIBUTE, VALUE)                                   \
-    setAttrib(Rexp_##VAR, install(ATTRIBUTE), Rexp_##VALUE)
-
-/*
- * Unpack an integer vector stored in SEXP S.
- */
-#define SEXP_2_INT_VECTOR(S, I, N)               \
-    CHECK_ARG_IS_INT_VECTOR(S);                  \
-    int *I = INTEGER(S);                         \
-    const R_len_t N = length(S);
-
-#define SEXP_2_INT(S,var)                                               \
-    int var = asInteger(S);                                             \
-    if (var == NA_INTEGER)                                              \
-        error ("Argument '" #S "' is not an integer");
-
-#define SEXP_2_STRING(S,var)                                            \
-    if (!isString(S) || length(S) != 1)                                 \
-        error ("Argument '" #S "' is not a string");                    \
-    const char * var = CHAR(STRING_ELT(S,0));
-
 
 static eaf_t **
 compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns, 
-                    const int *percentile, int nlevels)
+                    const double *percentile, int nlevels)
 {
     int k;
     SEXP_2_INT_VECTOR(CUMSIZES, cumsizes, cumsizes_len);
     if (cumsizes_len < nruns)
-        error("length of cumsizes (%d) is less than nruns (%d)",
-              cumsizes_len, nruns);
+        Rf_error("length of cumsizes (%d) is less than nruns (%d)",
+                 cumsizes_len, nruns);
 
     int *level;
 
@@ -137,22 +54,18 @@ compute_eaf_helper (SEXP DATA, int nobj, SEXP CUMSIZES, int nruns,
     return eaf;
 }
 
-extern SEXP compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
-                          SEXP PERCENTILES);
-
 SEXP
 compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS, SEXP PERCENTILE)
 {
     SEXP_2_INT(NOBJ, nobj);
     SEXP_2_INT(NRUNS, nruns);
-    SEXP_2_INT_VECTOR(PERCENTILE, percentile, nlevels);
+    SEXP_2_DOUBLE_VECTOR(PERCENTILE, percentile, nlevels);
 
     eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, percentile, nlevels);
-
     int totalpoints = eaf_totalpoints (eaf, nlevels);
 
     SEXP mat;
-    PROTECT(mat = allocMatrix(REALSXP, totalpoints, nobj + 1));
+    PROTECT(mat = Rf_allocMatrix(REALSXP, totalpoints, nobj + 1));
     double * rmat = REAL(mat);
 
     int pos = 0;
@@ -181,10 +94,6 @@ compute_eaf_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS, SEXP PERCENTILE)
     return mat;
 }
 
-
-SEXP compute_eafdiff_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
-                       SEXP INTERVALS);
-
 SEXP 
 compute_eafdiff_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
                   SEXP INTERVALS)
@@ -201,7 +110,7 @@ compute_eafdiff_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
     int totalpoints = eaf_totalpoints (eaf, nruns);
 
     SEXP mat;
-    PROTECT(mat = allocMatrix(REALSXP, totalpoints, nobj + 1));
+    PROTECT(mat = Rf_allocMatrix(REALSXP, totalpoints, nobj + 1));
     double *rmat = REAL(mat);
 
     int pos = 0;
@@ -266,6 +175,45 @@ static int polygon_copy (double *dest, int start, int nrows, const double *src)
     return len - start;
 }
 
+SEXP compute_eafdiff_rectangles_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
+                                  SEXP INTERVALS);
+SEXP
+compute_eafdiff_rectangles_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
+                             SEXP INTERVALS)
+{
+    int nprotected = 0;
+
+    int k;
+    SEXP_2_INT(NOBJ, nobj);
+    SEXP_2_INT(NRUNS, nruns);
+    SEXP_2_INT(INTERVALS, intervals);
+    
+    eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
+    eaf_polygon_t * rects = eaf_compute_rectangles(eaf, nruns);
+    for (k = 0; k < nruns; k++)
+        eaf_delete (eaf[k]);
+    free(eaf);
+    
+    int nrow = vector_int_size(&rects->col);
+    // Two points per row + color
+    new_real_matrix (result, nrow, 2 * nobj + 1);
+    double * p_xy = vector_objective_begin(&rects->xy);
+    for (k = 0; k < nrow; ++k) {
+        for (int i = 0; i < 2 * nobj; i++)
+            result[k + nrow * i] = (double) *(p_xy++);
+    }
+    for (k = 0; k < nrow; ++k) {
+        result[k + nrow * 2 * nobj] = (double) vector_int_at(&rects->col, k);
+    }
+    
+    vector_int_dtor (&rects->col);
+    vector_objective_dtor (&rects->xy);
+    free(rects);
+    UNPROTECT (nprotected);
+    return Rexp(result);
+}
+
+
 SEXP compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
                             SEXP INTERVALS);
 SEXP 
@@ -281,7 +229,7 @@ compute_eafdiff_area_C(SEXP DATA, SEXP NOBJ, SEXP CUMSIZES, SEXP NRUNS,
 
     eaf_t **eaf = compute_eaf_helper(DATA, nobj, CUMSIZES, nruns, NULL, nruns);
 
-    eaf_polygon_t *p = eaf_compute_area (eaf, nruns);
+    eaf_polygon_t *p = eaf_compute_area(eaf, nruns);
 
     for (k = 0; k < nruns; k++)
         eaf_delete (eaf[k]);
@@ -374,39 +322,27 @@ SEXP
 read_data_sets (SEXP FILENAME)
 {
     SEXP_2_STRING(FILENAME, filename);
-    objective_t *data = NULL;
-    int* cumsizes = NULL;
-    int nobj = 0, nruns = 0;
-
     /* Rprintf ("filename: %s\n", filename); */
-
+    objective_t * data = NULL;
+    int * cumsizes = NULL;
+    int nobj = 0, nruns = 0;
     read_objective_t_data (filename, &data, &nobj, &cumsizes, &nruns);
 
     const int ntotal = cumsizes[nruns - 1];
-    int * runtab = malloc (ntotal * sizeof(int));
-    int k, j, i;
-    for (k = 0, j = 0; k < ntotal; k++) {
-        if (k == cumsizes[j])
-            j++;
-        runtab[k] = j + 1;
-    }
 
     SEXP DATA;
-    PROTECT(DATA = allocMatrix(REALSXP, cumsizes[nruns-1], nobj + 1));
+    PROTECT(DATA = Rf_allocMatrix(REALSXP, cumsizes[nruns-1], nobj + 1));
     double *rdata = REAL(DATA);
-    int pos = 0;
-    for (j = 0; j < nobj; j++) {
-        for (i = 0; i < ntotal; i++) {
-            rdata[pos] = data[j + i * nobj];
-            pos++;
-        }
-    }
-    for (j = 0; j < ntotal; j++, pos++) {
-        rdata[pos] = runtab[j];
+    double_transpose (rdata, data, ntotal, nobj);
+
+    int k, j;
+    size_t pos = ntotal * nobj;
+    for (k = 0, j = 0; k < ntotal; k++, pos++) {
+        if (k == cumsizes[j]) j++;
+        rdata[pos] = j + 1;
     }
     free(data);
     free(cumsizes);
-    free(runtab);
     UNPROTECT (1);
     return DATA;
 }

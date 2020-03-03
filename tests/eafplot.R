@@ -11,11 +11,10 @@ eafplot(time + best ~ run | inst, groups = alg, data = gcp2x2, percentiles = c(0
     50, 100), include.extremes = TRUE, cex = 1.4, lty = c(2, 1, 2), lwd = c(2, 2,
     2), col = c("black", "blue", "grey50"))
 
-A1 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_dat"))
-A2 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
-eafplot(A1, A2, percentiles = c(50))
+A1 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_dat"))
+A2 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
 
-eafplot(list(A1 = A1, A2 = A2), percentiles = c(50))
+eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
 
 eafplot(A1, type="area", legend.pos="bottomleft")
 
@@ -35,7 +34,5 @@ data(SPEA2minstoptimeRichmond)
 SPEA2minstoptimeRichmond[, 2] <- SPEA2minstoptimeRichmond[, 2] / 60
 eafplot(SPEA2minstoptimeRichmond, xlab = expression(C[E]), ylab = "Minimum idle time (minutes)",
     las = 1, log = "y", maximise = c(FALSE, TRUE), main = "SPEA2 (Richmond)")
-
-eafplot(A1, A2, percentiles = c(50))
 
 dev.off()

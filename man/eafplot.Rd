@@ -4,28 +4,26 @@
 \alias{eafplot}
 \alias{eafplot.formula}
 \alias{eafplot.list}
-\alias{eafplot.data.frame}
 \alias{eafplot.default}
 \title{Plot the Empirical Attainment Function for two objectives generic}
 \usage{
 eafplot(x, ...)
 
-\method{eafplot}{formula}(formula, data, groups = NULL, subset = NULL, ...)
+\method{eafplot}{formula}(formula, data, groups = NULL, subset = NULL,
+  ...)
 
 \method{eafplot}{list}(x, ...)
 
-\method{eafplot}{data.frame}(x, y = NULL, ...)
-
 \method{eafplot}{default}(x, sets = NULL, groups = NULL,
-  percentiles = c(0, 50, 100), attsurfs = NULL, xlab = "objective 1",
-  ylab = "objective 2", xlim = NULL, ylim = NULL, log = "",
-  type = "point", col = NULL, lty = c("dashed", "solid", "solid", "solid",
-  "dashed"), lwd = c(1.75), pch = NA, cex.pch = par("cex"),
+  percentiles = c(0, 50, 100), attsurfs = NULL, xlab = NULL,
+  ylab = NULL, xlim = NULL, ylim = NULL, log = "",
+  type = "point", col = NULL, lty = c("dashed", "solid", "solid",
+  "solid", "dashed"), lwd = 1.75, pch = NA, cex.pch = par("cex"),
   las = par("las"), legend.pos = "topright", legend.txt = NULL,
-  extra.points = NULL, extra.legend = NULL, extra.pch = c(4:25),
-  extra.lwd = 0.5, extra.lty = "dashed", extra.col = "black",
-  maximise = c(FALSE, FALSE), xaxis.side = "below", yaxis.side = "left",
-  axes = TRUE, ...)
+  extra.points = NULL, extra.legend = NULL, extra.pch = 4:25,
+  extra.lwd = 0.5, extra.lty = NA, extra.col = "black",
+  maximise = c(FALSE, FALSE), xaxis.side = "below",
+  yaxis.side = "left", axes = TRUE, sci.notation = FALSE, ...)
 }
 \arguments{
 \item{x}{Either a matrix of data values, or a data frame, or a list of
@@ -41,13 +39,11 @@ present the plot is conditional to the instances.}
 
 \item{groups}{This may be used to plot profiles of different algorithms on the same plot.}
 
-\item{subset}{A vector indicating which rows of the data should be used. If left to default \code{NULL} all data in the data frame are used.}
+\item{subset}{(`integer()` | `NULL`)\cr A vector indicating which rows of the data should be used. If left to default \code{NULL} all data in the data frame are used.}
 
-\item{y}{Either a matrix of data values, or a data frame.}
+\item{sets}{([numeric])\cr Vector indicating which set each point belongs to.}
 
-\item{sets}{Vector indicating which set each point belongs to.}
-
-\item{percentiles}{Vector indicating which percentile should be plot. The
+\item{percentiles}{([numeric])\cr Vector indicating which percentile should be plot. The
 default is to plot only the median attainment curve.}
 
 \item{attsurfs}{TODO}
@@ -55,10 +51,10 @@ default is to plot only the median attainment curve.}
 \item{xlab, ylab, xlim, ylim, log, col, lty, lwd, pch, cex.pch, las}{Graphical
 parameters, see \code{\link{plot.default}}.}
 
-\item{type}{string giving the type of plot desired.  The following values
+\item{type}{(character(1))\cr string giving the type of plot desired.  The following values
 are possible, \samp{points} and \samp{area}.}
 
-\item{legend.pos}{the position of the legend, see \code{\link{legend}}.}
+\item{legend.pos}{the position of the legend, see \code{\link{legend}}.  A value of \code{"none"} hides the legend.}
 
 \item{legend.txt}{a character or expression vector to appear in the
 legend. If \code{NULL}, appropriate labels will be generated.}
@@ -73,8 +69,10 @@ groups of points.}
 \item{extra.pch, extra.lwd, extra.lty, extra.col}{Control the graphical aspect
 of the points. See \code{\link{points}} and \code{\link{lines}}.}
 
-\item{maximise}{Whether the first and/or second objective correspond to a
-maximisation problem.}
+\item{maximise}{(\code{logical()} | \code{logical(1)}) \cr Whether the objectives must be
+maximised instead of minimised. Either a single logical value that applies
+to all objectives or a vector of logical values, with one value per
+objective.}
 
 \item{xaxis.side}{On which side that xaxis is drawn. Valid values are
 "below" and "above". See \code{\link{axis}}.}
@@ -84,6 +82,8 @@ and "right". See \code{\link{axis}}.}
 
 \item{axes}{A logical value indicating whether both axes should be drawn
 on the plot.}
+
+\item{sci.notation}{Generate prettier labels}
 }
 \value{
 No value is returned.
@@ -106,9 +106,7 @@ solution quality over time of a collection of runs of a stochastic optimizer.
 \itemize{
 \item \code{formula}: Formula interface
 
-\item \code{list}: List interface for lists of data.frames
-
-\item \code{data.frame}: Data.frame interface
+\item \code{list}: List interface for lists of data.frames or matrices
 
 \item \code{default}: Main function
 }}
@@ -117,19 +115,18 @@ solution quality over time of a collection of runs of a stochastic optimizer.
 data(gcp2x2)
 tabucol <- subset(gcp2x2, alg != "TSinN1")
 tabucol$alg <- tabucol$alg[drop=TRUE]
-eafplot(time+best~run,data=tabucol,subset=tabucol$inst=="DSJC500.5")
+eafplot(time + best ~ run, data = tabucol, subset = tabucol$inst=="DSJC500.5")
 
 \dontrun{ # These take time
-eafplot(time+best~run|inst,groups=alg,data=gcp2x2)
-eafplot(time+best~run|inst,groups=alg,data=gcp2x2,
-	percentiles=c(0,50,100),include.extremes=TRUE,
-	cex=1.4, lty=c(2,1,2),lwd=c(2,2,2),
-        col=c("black","blue","grey50"))
+eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2)
+eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2,
+	percentiles=c(0,50,100), cex = 1.4, lty = c(2,1,2), lwd = c(2,2,2),
+     col = c("black","blue","grey50"))
 
-A1 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_dat"))
-A2 <- read.data.sets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
-eafplot(A1, A2, percentiles = c(50))
-eafplot(list(A1 = A1, A2 = A2), percentiles = c(50))
+A1 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_dat"))
+A2 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
+eafplot(A1, percentiles = 50, sci.notation = TRUE)
+eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
 
 ## Save as a PDF file.
 # dev.copy2pdf(file = "eaf.pdf", onefile = TRUE, width = 5, height = 4)
@@ -150,14 +147,21 @@ eafplot (SPEA2relativeRichmond, percentiles = c(25, 50, 75),
          extra.points = HybridGA$richmond, extra.lty = "dashed",
          extra.legend = "Hybrid GA")
 
+eafplot (SPEA2relativeRichmond, percentiles = c(25, 50, 75),
+         xlab = expression(C[E]), ylab = "Total switches",
+         xlim = c(90, 140), ylim = c(0, 25), type = "area",
+         extra.points = HybridGA$richmond, extra.lty = "dashed",
+         extra.legend = "Hybrid GA", legend.pos = "bottomright")
+
 data(SPEA2minstoptimeRichmond)
 SPEA2minstoptimeRichmond[,2] <- SPEA2minstoptimeRichmond[,2] / 60
 eafplot (SPEA2minstoptimeRichmond, xlab = expression(C[E]),
-         ylab = "Minimum idle time (minutes)",
-         las = 1, log = "y", maximise = c(FALSE, TRUE), main = "SPEA2 (Richmond)")
+         ylab = "Minimum idle time (minutes)", maximise = c(FALSE, TRUE),
+         las = 1, log = "y", main = "SPEA2 (Richmond)",
+         legend.pos = "bottomright")
 }
 }
 \seealso{
-\code{\link{read.data.sets}} \code{\link{eafdiffplot}}
+\code{\link{read_datasets}} \code{\link{eafdiffplot}}
 }
 \keyword{graphs}

@@ -462,12 +462,12 @@ xlim <- NULL
 ylim <- NULL
 
 if (do.eaf) {
-  data <- lapply (eaffiles, read.data.sets)
+  data <- lapply (eaffiles, read_datasets)
   xlim <- range(xlim, sapply(data, function(x) x[, 1]))
   ylim <- range(ylim, sapply(data, function(x) x[, 2]))
 } else {
   attsurfs <- lapply(eaffiles, function(x) {
-                     z <- read.data.sets(x)
+                     z <- read_datasets(x)
                      z <- split.data.frame(z, z$set)
                      z <- lapply(z, function(y) {y$set <- 1; return(y)})
                      return(z)})
@@ -518,16 +518,16 @@ for (k in seq_along(output.files)) {
              extra.points = extra.points, extra.pch = extra.pch, extra.col = extra.col,
              xlim = xlim, ylim = ylim,
              legend.pos = legend.pos, extra.legend = extra.legend,
-             legend.txt = legend.txt, maximise = maximise)
+             legend.txt = legend.txt, maximise = maximise, main = NULL)
     } else {
-      eafplot.default (data[[k]][,1:2], sets = data[[k]][,3],
+      eafplot (data[[k]][,1:2], sets = data[[k]][,3],
                        attsurfs = attsurfs[[k]], percentiles = percentiles,
                        xlab = xlab, ylab = ylab, las = 0, log = log,
                        type = eaf.type, lty = lty, col = col, pch=pch, cex.pch=0.75,
                        extra.points = extra.points, extra.pch = extra.pch, extra.col = extra.col,
                        xlim=xlim, ylim=ylim,
                        legend.pos = legend.pos, extra.legend = extra.legend,
-                       maximise = maximise)
+                       maximise = maximise, main = NULL)
     }
   dev.null <- dev.off()
   cat ("Plot: ", output.file, "\n", sep='')

@@ -2,22 +2,23 @@
 % Please edit documentation in R/eaf.R
 \name{eafdiffplot}
 \alias{eafdiffplot}
-\title{Empirical attainment function differences}
+\title{Plot empirical attainment function differences}
 \usage{
-eafdiffplot(data.left, data.right, col = c("#FFFFFF", "#808080", "#000000"),
-  intervals = 5, percentiles = c(50), full.eaf = FALSE, type = "area",
-  legend.pos = if (full.eaf) "bottomleft" else "topright",
-  title.left = deparse(substitute(data.left)),
-  title.right = deparse(substitute(data.right)), xlim = NULL, ylim = NULL,
-  cex = par("cex"), cex.lab = par("cex.lab"), cex.axis = par("cex.axis"),
-  maximise = c(FALSE, FALSE), grand.lines = TRUE, left.panel.last = NULL,
+eafdiffplot(data.left, data.right, col = c("#FFFFFF", "#808080",
+  "#000000"), intervals = 5, percentiles = c(50), full.eaf = FALSE,
+  type = "area", legend.pos = if (full.eaf) "bottomleft" else
+  "topright", title.left = deparse(substitute(data.left)),
+  title.right = deparse(substitute(data.right)), xlim = NULL,
+  ylim = NULL, cex = par("cex"), cex.lab = par("cex.lab"),
+  cex.axis = par("cex.axis"), maximise = c(FALSE, FALSE),
+  grand.lines = TRUE, sci.notation = FALSE, left.panel.last = NULL,
   right.panel.last = NULL, ...)
 }
 \arguments{
 \item{data.left, data.right}{Data frames corresponding to the input data of
 left and right sides, respectively. Each data frame has at least three
 columns, the third one being the set of each point. See also
-\code{\link{read.data.sets}}.}
+\code{\link{read_datasets}}.}
 
 \item{col}{A character vector of three colors for the magnitude of the
 differences of 0, 0.5, and 1. Intermediate colors are computed
@@ -40,18 +41,22 @@ differences between the EAFs.}
 (\samp{points}) or whether to color the areas that have at least a
 certain value (\samp{area}).}
 
-\item{legend.pos}{The position of the legend. See \code{\link{legend}}.}
+\item{legend.pos}{The position of the legend. See \code{\link{legend}}.  A value of \code{"none"} hides the legend.}
 
 \item{title.left, title.right}{Title for left and right panels, respectively.}
 
 \item{xlim, ylim, cex, cex.lab, cex.axis}{Graphical parameters, see
 \code{\link{plot.default}}.}
 
-\item{maximise}{Whether the first and/or second objective correspond to
-a maximisation problem.}
+\item{maximise}{(\code{logical()} | \code{logical(1)}) \cr Whether the objectives must be
+maximised instead of minimised. Either a single logical value that applies
+to all objectives or a vector of logical values, with one value per
+objective.}
 
 \item{grand.lines}{Whether to plot the grand-best and grand-worst
 attainment surfaces.}
+
+\item{sci.notation}{Generate prettier labels}
 
 \item{left.panel.last, right.panel.last}{An expression to be evaluated after
 plotting has taken place on each panel (left or right). This can be useful
@@ -85,7 +90,7 @@ This function calculates the differences between the EAFs of two
   the value of the EAF difference are plotted. This means that for areas
   where the EAF differences stays constant, the region will appear in
   white even if the value of the differences in that region is
-  large. This explain "white holes" surrounded by black
+  large. This explains "white holes" surrounded by black
   points.
 
   With \code{type = "area"}, the area where the EAF differences has a
@@ -107,16 +112,16 @@ This function calculates the differences between the EAFs of two
   considerably the apparent size of the areas.
 }
 \examples{
-A1 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "ALG_1_dat"))
-A2 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "ALG_2_dat"))
+A1 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_1_dat"))
+A2 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_2_dat"))
 \donttest{# These take time
 eafdiffplot(A1, A2, full.eaf = TRUE)
 eafdiffplot(A1, A2, type = "area")
-eafdiffplot(A1, A2, type = "point")
+eafdiffplot(A1, A2, type = "point", sci.notation = TRUE)
 }
 # A more complex example
-a1 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "wrots_l100w10_dat"))
-a2 <- read.data.sets(file.path(system.file(package="eaf"), "extdata", "wrots_l10w100_dat"))
+a1 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "wrots_l100w10_dat"))
+a2 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "wrots_l10w100_dat"))
 DIFF <- eafdiffplot(a1, a2, col = c("white", "blue", "red"), intervals = 5,
 type = "point",
             title.left = expression("W-RoTS, " * lambda * "=" * 100 * ", " * omega * "=" * 10),
@@ -132,6 +137,6 @@ DIFF$right[,3] <- -DIFF$right[,3]
 
 }
 \seealso{
-\code{\link{read.data.sets}}, \code{\link{eafplot}}
+\code{\link{read_datasets}}, \code{\link{eafplot}}
 }
 \keyword{graphs}

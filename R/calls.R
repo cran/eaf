@@ -1,7 +1,7 @@
 ###############################################################################
 #
-#                          Copyright (c) 2011
-#         Manuel Lopez-Ibanez <manuel.lopez-ibanez@ulb.ac.be>
+#                          Copyright (c) 2011-2018
+#         Manuel Lopez-Ibanez <manuel.lopez-ibanez@manchester.ac.uk>
 #             Marco Chiarandini <marco@imada.sdu.dk>
 #
 # This program is free software (software libre); you can redistribute
@@ -35,7 +35,7 @@
 #    Berlin, Germany, 2010. doi: 10.1007/978-3-642-02538-9_9
 # 
 # Moreover, as a personal note, I would appreciate it if you would email
-# manuel.lopez-ibanez@ulb.ac.be with citations of papers referencing this
+# manuel.lopez-ibanez@manchester.ac.uk with citations of papers referencing this
 # work so I can mention them to my funding agent and tenure committee.
 #
 ################################################################################
@@ -137,9 +137,10 @@ eafplot.formula <- function(formula, data, groups = NULL, subset = NULL, ...)
     #                   subscr[id]
     cond.current.level <- .cupdate(cond.current.level, cond.max.level)
   }
-  # FIXME: I don't think this is doing the right thing.
-  op <- par(mfrow = .check.layout(NULL,cond.max.level)[2:3])
+  op <- par(no.readonly = TRUE)  # save default, for resetting...
   on.exit(par(op))
+  ## FIXME: I don't think this is doing the right thing.
+  par(mfrow = .check.layout(NULL,cond.max.level)[2:3])
   for (i in seq_len(length(panel.args))) {
     eafplot.default(panel.args[[i]]$points,
                     panel.args[[i]]$sets,
@@ -150,72 +151,31 @@ eafplot.formula <- function(formula, data, groups = NULL, subset = NULL, ...)
 }
 
 
-#' @describeIn eafplot List interface for lists of data.frames
+#' @describeIn eafplot List interface for lists of data.frames or matrices
 #' 
 #'@export 
-eafplot.list <- function(x,...)
+eafplot.list <- function(x, ...)
 {
   if (!is.list(x))
-    stop("'x' must be a list of data.frames with exactly three columns")
+    stop("'x' must be a list of data.frames or matrices with exactly three columns")
 
-  DT <- data.frame()
-  if (!is.null(names(x)))
-    groups <- names(x)
-  else
-    groups <- 1:length(x)
-  for (i in seq_len(length(x)) ) {
-    if (!is.data.frame(x[[i]]))
-      stop("Each element of the list must be a data.frame with exactly three columns.")
-    DT <- rbind(DT, data.frame(x[[i]], groups = groups[i]))
+  groups <- if (!is.null(names(x))) names(x) else 1:length(x)
+
+  check.elem <- function(elem) {
+    elem <- check.eaf.data(elem)
+    if (ncol(elem) != 3L)
+      stop("Each element of the list have exactly three columns. If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
+    return(elem)
   }
-  eafplot(as.matrix(DT[,c(1,2)]), as.numeric(as.factor(DT[,3])), as.factor(DT[,4]),...)
+  x <- sapply(x, check.elem)  
+  groups <- rep(groups, sapply(x, nrow))
+  x <- do.call(rbind, x)
+  
+  eafplot(as.matrix(x[,c(1,2)]),
+          sets = as.numeric(as.factor(x[, 3])),
+          groups = groups, ...)
 }
-
-#' @describeIn eafplot Data.frame interface
-#'
-#' @param y Either a matrix of data values, or a data frame.
-#' @export
-eafplot.data.frame <- function(x, y = NULL, ...)
-{
-  namex <- deparse(substitute(x))
-  namey <- deparse(substitute(y))
-
-  # FIXME: Why keep x and y as data.frame to convert it here to matrix?
-  eafplot.data.frame2 <- function(x, groups, main = DNAME, ...)
-    eafplot(as.matrix(x[,c(1,2)]), as.numeric(x[,3]),
-            groups = groups, main = main, ...)
-  check.eaf.data.frame <- function(x) {
-    xname <- deparse(substitute(x))
-    if (!is.data.frame(x) || ncol(x) != 3L)
-      stop("'", xname, "' must be a data.frame with exactly three columns.\n",
-           "  If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
-    if (nrow(x) < 1L)
-      stop("not enough (finite) '", xname, "' observations")
-    if (!is.numeric(x[,1]) || !is.numeric(x[,2]))
-      stop("columns 1 and 2 of '", xname, "' must be numeric")
-    if (!is.numeric(x[,3]) && !is.factor(x[,3]))
-      x[,3] <- as.factor(x[,3])
-    return(x)
-  }
-  x <- check.eaf.data.frame(x)
-  if (!is.null(y)) {
-    y <- check.eaf.data.frame(y)
-    DNAME <- paste0(namex, " and ", namey)
-    DT <- rbind(data.frame(x, groups = namex),
-                data.frame(y, groups = namey))
-    groups <- as.factor(DT[, 4])
-  } else {
-    DNAME <- namex
-    DT <- x
-    groups <- NULL
-  }
-  eafplot.data.frame2(DT, groups = groups, ...)
-}
-
 
 ### Local Variables:
-### ess-style: DEFAULT
-### indent-tabs-mode: nil
-### ess-fancy-comments: nil
 ### End:
 
