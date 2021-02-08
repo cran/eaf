@@ -10,23 +10,24 @@ read_datasets(file, col_names, text)
 read.data.sets(file, col.names)
 }
 \arguments{
-\item{file}{Filename that contains the data.  Each row of the table appears
-as one line of the file.  If it does not contain an \emph{absolute} path,
-the file name is \emph{relative} to the current working directory,
-\code{\link[base]{getwd}()}.  Tilde-expansion is performed where supported.}
+\item{file}{(\code{character()}) \cr Filename that contains the data.  Each row
+of the table appears as one line of the file.  If it does not contain an
+\emph{absolute} path, the file name is \emph{relative} to the current
+working directory, \code{\link[base]{getwd}()}.  Tilde-expansion is
+performed where supported.  Files compressed with \code{xz} are supported.}
 
 \item{col_names, col.names}{Vector of optional names for the variables.  The
 default is to use \samp{"V"} followed by the column number.}
 
-\item{text}{(`character()`) \cr If \code{file} is not supplied and this is,
+\item{text}{(\code{character()}) \cr If \code{file} is not supplied and this is,
 then data are read from the value of \code{text} via a text connection.
 Notice that a literal string can be used to include (small) data sets
 within R code.}
 }
 \value{
-(`matrix()`) containing a representation of the
- data in the file. An extra column \code{set} is added to indicate to
- which set each row belongs.
+(\code{matrix()}) containing a representation of the
+data in the file. An extra column \code{set} is added to indicate to
+which set each row belongs.
 }
 \description{
 Reads a text file in table format and creates a matrix from it. The file
@@ -37,30 +38,31 @@ belongs.
 }
 \note{
 There are several examples of data sets in
-  \code{file.path(system.file(package="eaf"),"extdata")}.
+\code{system.file(package="eaf","extdata")}.
 
-\code{read.data.sets} is a deprecated alias. It will be removed in the next
-  major release.
+\code{read.data.sets()} is a deprecated alias. It will be removed in the next
+major release.
 }
 \section{Warning}{
 
- A known limitation is that the input file must use newline characters
- native to the host system, otherwise they will be, possibly silently,
- misinterpreted. In GNU/Linux the program \code{dos2unix} may be used
- to fix newline characters.
+A known limitation is that the input file must use newline characters
+native to the host system, otherwise they will be, possibly silently,
+misinterpreted. In GNU/Linux the program \code{dos2unix} may be used
+to fix newline characters.
 }
 
 \examples{
-A1 <- read_datasets(file.path(system.file(package="eaf"),"extdata","ALG_1_dat"))
+extdata_path <- system.file(package="eaf","extdata")
+A1 <- read_datasets(file.path(extdata_path,"ALG_1_dat.xz"))
 str(A1)
-A2 <- read_datasets(file.path(system.file(package="eaf"),"extdata","ALG_2_dat"))
+A2 <- read_datasets(file.path(extdata_path,"ALG_2_dat.xz"))
 str(A2)
 
-read_datasets(text="1 2\\n3 4\\n\\n5 6\\n7 8\\n", col_names=c("obj1", "obj2"))
+read_datasets(text="1 2\n3 4\n\n5 6\n7 8\n", col_names=c("obj1", "obj2"))
 
 }
 \seealso{
-\code{\link[utils]{read.table}}, \code{\link{eafplot}}, \code{\link{eafdiffplot}}
+\code{\link[utils]{read.table}}, \code{\link[=eafplot]{eafplot()}}, \code{\link[=eafdiffplot]{eafdiffplot()}}
 }
 \author{
 Manuel \enc{López-Ibáñez}{Lopez-Ibanez}

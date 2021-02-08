@@ -81,7 +81,7 @@ compute.eaf <- function(data, percentiles = NULL)
     percentiles <- 1L:nsets * 100.0 / nsets
   }
   percentiles <- unique.default(sort.int(percentiles))
-  return(.Call("compute_eaf_C",
+  return(.Call(compute_eaf_C,
                as.double(t(as.matrix(data[, 1L:nobjs]))),
                nobjs,
                as.integer(cumsum(npoints)),
@@ -114,7 +114,7 @@ compute.eafdiff.helper <- function(data, intervals)
   ## division <- nsets %/% 2
   ## nsets1 <- division
   ## nsets2 <- nsets - division
-  return(.Call("compute_eafdiff_C",
+  return(.Call(compute_eafdiff_C,
                 as.double(t(as.matrix(data[, 1L:nobjs]))),
                 nobjs,
                 as.integer(cumsum(npoints)),
@@ -130,7 +130,7 @@ compute.eafdiff.helper <- function(data, intervals)
 #' @param x,y Data frames corresponding to the input data of
 #'   left and right sides, respectively. Each data frame has at least three
 #'   columns, the third one being the set of each point. See also
-#'   \code{\link{read_datasets}}.
+#'   [read_datasets()].
 #'
 #' @param intervals (`integer(1)`) \cr The absolute range of the differences
 #'   \eqn{[0, 1]} is partitioned into the number of intervals provided.
@@ -143,65 +143,72 @@ compute.eafdiff.helper <- function(data, intervals)
 #'   This function calculates the differences between the EAFs of two
 #'   data sets.
 #'
-#' @return With \code{rectangle=FALSE}, a \code{data.frame} containing points
-#'   where there is a transition in the value of the EAF differences. The last
-#'   column gives the difference in terms of sets in \code{x} minus sets in
-#'   \code{y} that attain each point (i.e., negative values are differences in
-#'   favour \code{y}).
+#' @return With `rectangle=FALSE`, a `data.frame` containing points where there
+#'   is a transition in the value of the EAF differences.  With
+#'   `rectangle=TRUE`, a `matrix` where the first 4 columns give the
+#'   coordinates of two corners of each rectangle and the last column. In both
+#'   cases, the last column gives the difference in terms of sets in `x` minus
+#'   sets in `y` that attain each point (i.e., negative values are differences
+#'   in favour `y`).
 #' 
-#' @seealso    \code{\link{read_datasets}}, \code{\link{eafdiffplot}}
+#' @seealso    [read_datasets()], [eafdiffplot()]
 #' 
 #' @examples
-#' A1 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_1_dat"))
-#' A2 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_2_dat"))
+#'
+#' A1 <- read_datasets(text='
+#'  3 2
+#'  2 3
+#'  
+#'  2.5 1
+#'  1 2
+#'  
+#'  1 2
+#' ')
+#' A2 <- read_datasets(text='
+#'  4 2.5
+#'  3 3
+#'  2.5 3.5
+#'  
+#'  3 3
+#'  2.5 3.5
+#'  
+#'  2 1
+#' ')
 #' d <- eafdiff(A1, A2)
-#' # This is large
 #' str(d)
-#' head(d)
+#' print(d)
 #'
 #' d <- eafdiff(A1, A2, rectangles = TRUE)
-#' # This is large
 #' str(d)
-#' head(d)
-
-#' # FIXME: finish this!
-#' # Small example
-#' X <- read_datasets(text='
-#' 1 2
-#' 2.5 1
-#'
-#' 3.5 2
-#'
-#' 2 3
-#'
-#' 4 1
-#' ')
-#' Y <- read_datasets(text='
-#' 2.5 1
-#'
-#' 3.5 2
-#'
-#' 2 3
-#'
-#' 4 1
-#' ')
-#'
+#' print(d)
 #'
 #'@export
-eafdiff <- function(x, y, intervals, maximise = c(FALSE, FALSE),
+#'@md
+eafdiff <- function(x, y, intervals = NULL, maximise = c(FALSE, FALSE),
                     rectangles = FALSE)
 {
   maximise <- as.logical(maximise)
-  if (missing(intervals)) {
+  nsets <- (length(unique(x[,ncol(x)])) + length(unique(y[,ncol(y)])))
+  if (is.null(intervals)) {
     # Default is nsets / 2
-    intervals <- (length(unique(x[,ncol(x)])) + length(unique(y[,ncol(y)]))) / 2
+    intervals <- nsets / 2.0
+  } else {
+    stopifnot(length(intervals) == 1L)
+    intervals <- min(intervals, nsets / 2.0)
   }
 
-  data <- rbind_datasets(x,y)
-  data <- matrix.maximise(check.eaf.data(data), maximise = maximise)
+  data <- rbind_datasets(x, y)
+  data <- check.eaf.data(data)
+  # FIXME: Is it faster to subset or to multiply the third column by 1?
+  data[,1:2] <- matrix.maximise(data[,1:2], maximise = maximise)
   
   DIFF <- if (rectangles) compute.eafdiff.rectangles(data, intervals = intervals)
           else compute.eafdiff.helper(data, intervals = intervals)
+  # FIXME: We should remove duplicated rows in C code.
+
+  # FIXME: Check that we do not generate duplicated nor overlapping rectangles
+  # with different colors. That would be a bug.
+  DIFF <- DIFF[!duplicated(DIFF),]
   return(DIFF)
 }
 
@@ -229,7 +236,7 @@ compute.eafdiff.rectangles <- function(data, intervals = 1L)
   sets <- data[ , nobjs + 1L]
   nsets <- length(unique(sets))
   npoints <- tabulate (sets)
-  return(.Call("compute_eafdiff_rectangles_C",
+  return(.Call(compute_eafdiff_rectangles_C,
                as.double(t(as.matrix(data[, 1L:nobjs]))),
                nobjs,
                as.integer(cumsum(npoints)),
@@ -251,7 +258,9 @@ compute.eafdiff.polygon <- function(data, intervals = 1L)
   ## division <- nsets %/% 2
   ## nsets1 <- division
   ## nsets2 <- nsets - division
-  return(.Call("compute_eafdiff_area_C",
+  # FIMXE: This function may require a lot of memory for 900 sets. Is there a
+  # way to save memory?
+  return(.Call(compute_eafdiff_area_C,
                as.double(t(as.matrix(data[, 1L:nobjs]))),
                nobjs,
                as.integer(cumsum(npoints)),
@@ -293,13 +302,22 @@ range.finite <- function(x)
 
 matrix.maximise <- function(z, maximise)
 {
-  # R bug?: If z is data.frame with rownames != NULL, and
-  # maximise == (FALSE, FALSE), then -z[, which(FALSE)]
-  # gives error: Error in
-  # data.frame(value, row.names = rn, check.names = FALSE, check.rows = FALSE) : 
-  # row names supplied are of the wrong length
-  rownames(z) <- NULL
-  z[, which(maximise)] <- -z[, which(maximise)]
+  stopifnot(ncol(z) == length(maximise))
+  if (is.data.frame(z)) {
+    # R bug?: If z is data.frame with rownames != NULL, and
+    # maximise == (FALSE, FALSE), then -z[, which(FALSE)]
+    # gives error: Error in
+    # data.frame(value, row.names = rn, check.names = FALSE, check.rows = FALSE) : 
+    # row names supplied are of the wrong length
+    row_names <- rownames(z)
+    rownames(z) <- NULL
+    x <- which(maximise)
+    z[, x] <- -z[, x]
+    rownames(z) <- row_names
+  } else {
+    x <- ifelse(maximise, -1L, 1L)
+    z <- t(t(z) * x)
+  }
   return(z)
 }
 
@@ -307,52 +325,55 @@ matrix.maximise <- function(z, maximise)
 #'
 #' Reads a text file in table format and creates a matrix from it. The file
 #' may contain several sets, separated by empty lines. Lines starting by
-#' \code{'#'} are considered comments and treated as empty lines. The function
-#' adds an additional column \code{set} to indicate to which set each row
+#' `'#'` are considered comments and treated as empty lines. The function
+#' adds an additional column `set` to indicate to which set each row
 #' belongs.
 #'
-#' @param file Filename that contains the data.  Each row of the table appears
-#'   as one line of the file.  If it does not contain an \emph{absolute} path,
-#'   the file name is \emph{relative} to the current working directory,
-#'   \code{\link[base]{getwd}()}.  Tilde-expansion is performed where supported.
+#' @param file (`character()`) \cr Filename that contains the data.  Each row
+#'   of the table appears as one line of the file.  If it does not contain an
+#'   \emph{absolute} path, the file name is \emph{relative} to the current
+#'   working directory, \code{\link[base]{getwd}()}.  Tilde-expansion is
+#'   performed where supported.  Files compressed with `xz` are supported.
 #'
 #' @param col_names,col.names Vector of optional names for the variables.  The
 #'   default is to use \samp{"V"} followed by the column number.
 #'
-#' @param text (`character()`) \cr If \code{file} is not supplied and this is,
-#'   then data are read from the value of \code{text} via a text connection.
+#' @param text (`character()`) \cr If `file` is not supplied and this is,
+#'   then data are read from the value of `text` via a text connection.
 #'   Notice that a literal string can be used to include (small) data sets
 #'   within R code.
 #'
 #' @return  (`matrix()`) containing a representation of the
-#'  data in the file. An extra column \code{set} is added to indicate to
+#'  data in the file. An extra column `set` is added to indicate to
 #'  which set each row belongs. 
 #'
 #' @author Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
 #'
 #' @note There are several examples of data sets in
-#'   \code{file.path(system.file(package="eaf"),"extdata")}.
+#'   `system.file(package="eaf","extdata")`.
 #'
-#' \code{read.data.sets} is a deprecated alias. It will be removed in the next
+#' `read.data.sets()` is a deprecated alias. It will be removed in the next
 #'   major release.
 #' 
 #' @section Warning:
 #'  A known limitation is that the input file must use newline characters
 #'  native to the host system, otherwise they will be, possibly silently,
-#'  misinterpreted. In GNU/Linux the program \code{dos2unix} may be used
+#'  misinterpreted. In GNU/Linux the program `dos2unix` may be used
 #'  to fix newline characters.
 #'
-#'@seealso \code{\link[utils]{read.table}}, \code{\link{eafplot}}, \code{\link{eafdiffplot}}
+#'@seealso \code{\link[utils]{read.table}}, [eafplot()], [eafdiffplot()]
 #'
 #'@examples
-#' A1 <- read_datasets(file.path(system.file(package="eaf"),"extdata","ALG_1_dat"))
+#' extdata_path <- system.file(package="eaf","extdata")
+#' A1 <- read_datasets(file.path(extdata_path,"ALG_1_dat.xz"))
 #' str(A1)
-#' A2 <- read_datasets(file.path(system.file(package="eaf"),"extdata","ALG_2_dat"))
+#' A2 <- read_datasets(file.path(extdata_path,"ALG_2_dat.xz"))
 #' str(A2)
 #'
 #' read_datasets(text="1 2\n3 4\n\n5 6\n7 8\n", col_names=c("obj1", "obj2"))
 #' 
 #' @keywords file
+#' @md
 #' @export
 read_datasets <- function(file, col_names, text)
 {
@@ -364,8 +385,15 @@ read_datasets <- function(file, col_names, text)
     if (!file.exists(file))
       stop("error: ", file, ": No such file or directory");
     file <- normalizePath(file)
+    if (grepl("\\.xz$", file)) {
+      unc_file <- tempfile()
+      writeLines(readLines(zz <- xzfile(file, "r")), unc_file)
+      close(zz)
+      file <- unc_file
+      on.exit(unlink(file))
+    }
   }
-  out <- .Call("read_data_sets", as.character(file))
+  out <- .Call(read_data_sets, as.character(file))
   if (missing(col_names))
     col_names <- paste0("V", 1L:(ncol(out)-1))
   colnames(out) <- c(col_names, "set")
@@ -397,14 +425,18 @@ points.steps <- function(x)
 {
   n <- nrow(x)
   if (n == 1L) return(x)
-  x <- rbind(x, cbind(x[-1L, 1L], x[-n, 2L]))
-  return(x[c(as.vector(outer(c(0L, n), 1L:(n - 1L), "+")), n),])
+  x <- rbind(x, cbind(x=x[-1L, 1L, drop=FALSE], y=x[-n, 2L, drop=FALSE]))
+  idx <- c(as.vector(outer(c(0L, n), 1L:(n - 1L), "+")), n)
+  stopifnot(length(idx) == nrow(x))
+  stopifnot(!anyDuplicated(idx))
+  return(x[idx, ])
 }
+
 
 
 #' Exact computation of the EAF
 #'
-#' This function computes the EAF given a set of points and a vector \code{set}
+#' This function computes the EAF given a set of points and a vector `set`
 #' that indicates to which set each point belongs.
 #'
 #' @param points Either a matrix or a data frame of numerical values, where
@@ -416,33 +448,32 @@ points.steps <- function(x)
 #'   belonging to different groups.
 #'
 #' @param percentiles The percentiles of the EAF of each side that will be
-#'   plotted as attainment surfaces. \code{NA} does not plot any. See
-#'   \code{\link{eafplot.default}}.
+#'   plotted as attainment surfaces. `NA` does not plot any. See
+#'   [eafplot.default()].
 #'
-#' @return  A data frame (\code{data.frame}) containing the exact representation
+#' @return  A data frame (`data.frame`) containing the exact representation
 #'  of EAF. The last column gives the percentile that corresponds to each
-#'  point. If groups is not \code{NULL}, then an additional column
+#'  point. If groups is not `NULL`, then an additional column
 #'  indicates to which group the point belongs.
 #'
 #' @author  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
 #'
-#'@note There are several examples of data sets in \code{file.path(system.file(package="eaf"),"extdata")}.
+#'@note There are several examples of data sets in `system.file(package="eaf","extdata")`.
 #'
-#'@seealso \code{\link{read_datasets}}
+#'@seealso [read_datasets()]
 #'
 #'@examples
-#'
-#' eaf.path <- system.file(package="eaf")
+#' extdata_path <- system.file(package="eaf", "extdata")
 #' 
-#' x <- read_datasets(file.path(eaf.path, "extdata","example1_dat"))
+#' x <- read_datasets(file.path(extdata_path, "example1_dat"))
 #' # Compute full EAF
 #' str(eafs(x[,1:2], x[,3]))
 #' 
 #' # Compute only best, median and worst
 #' str(eafs(x[,1:2], x[,3], percentiles = c(0, 50, 100)))
 #'
-#' x <- read_datasets(file.path(eaf.path,"extdata", "spherical-250-10-3d.txt"))
-#' y <- read_datasets(file.path(eaf.path,"extdata", "uniform-250-10-3d.txt"))
+#' x <- read_datasets(file.path(extdata_path, "spherical-250-10-3d.txt"))
+#' y <- read_datasets(file.path(extdata_path, "uniform-250-10-3d.txt"))
 #' x <- data.frame(x, groups = "spherical")
 #' x <- rbind(x, data.frame(y, groups = "uniform"))
 #' # Compute only median separately for each group
@@ -452,6 +483,7 @@ points.steps <- function(x)
 #' # plot_ly(z, x = ~X1, y = ~X2, z = ~X3, color = ~groups,
 #' #         colors = c('#BF382A', '#0C4B8E')) %>% add_markers()
 #'@export
+#'@md
 eafs <- function (points, sets, groups = NULL, percentiles = NULL)
 {
   points <- cbind(points, sets)
@@ -503,7 +535,7 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #' 
 #' @param groups This may be used to plot profiles of different algorithms on the same plot.
 #' 
-#' @param subset (`integer()` | `NULL`)\cr A vector indicating which rows of the data should be used. If left to default \code{NULL} all data in the data frame are used.
+#' @param subset (`integer()` | `NULL`)\cr A vector indicating which rows of the data should be used. If left to default `NULL` all data in the data frame are used.
 #'  
 #' @param sets ([numeric])\cr Vector indicating which set each point belongs to.
 #' 
@@ -516,19 +548,19 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #'   are possible, \samp{points} and \samp{area}.
 #' 
 #' @param xlab,ylab,xlim,ylim,log,col,lty,lwd,pch,cex.pch,las Graphical
-#'   parameters, see \code{\link{plot.default}}.
+#'   parameters, see [plot.default()].
 #' 
-#'@param legend.pos the position of the legend, see \code{\link{legend}}.  A value of \code{"none"} hides the legend.
+#'@param legend.pos the position of the legend, see [legend()].  A value of `"none"` hides the legend.
 #'
 #'@param legend.txt a character or expression vector to appear in the
-#'   legend. If \code{NULL}, appropriate labels will be generated.
+#'   legend. If `NULL`, appropriate labels will be generated.
 #' 
 #' @param extra.points A list of matrices or data.frames with
 #'   two-columns. Each element of the list defines a set of points, or
-#'   lines if one of the columns is \code{NA}.
+#'   lines if one of the columns is `NA`.
 #' 
 #' @param extra.pch,extra.lwd,extra.lty,extra.col Control the graphical aspect
-#'   of the points. See \code{\link{points}} and \code{\link{lines}}.
+#'   of the points. See [points()] and [lines()].
 #' 
 #' @param extra.legend A character vector providing labels for the
 #'   groups of points.
@@ -536,21 +568,21 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #' @template arg_maximise
 #' 
 #' @param xaxis.side On which side that xaxis is drawn. Valid values are
-#'   "below" and "above". See \code{\link{axis}}.
+#'   "below" and "above". See [axis()].
 #' 
 #' @param yaxis.side On which side that yaxis is drawn. Valid values are "left"
-#'   and "right". See \code{\link{axis}}.
+#'   and "right". See [axis()].
 #'   
 #' @param axes A logical value indicating whether both axes should be drawn
 #'   on the plot.
 #'
 #' @param sci.notation Generate prettier labels
 #'
-#' @param ... Other graphical parameters to \code{\link{plot.default}}.
+#' @param ... Other graphical parameters to [plot.default()].
 #' 
 #' @return No value is returned.
 #' 
-#' @seealso   \code{\link{read_datasets}} \code{\link{eafdiffplot}}
+#' @seealso   [read_datasets()] [eafdiffplot()]
 #'
 #'@examples
 #'data(gcp2x2)
@@ -561,11 +593,12 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #' \dontrun{ # These take time
 #' eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2)
 #' eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2,
-#' 	percentiles=c(0,50,100), cex = 1.4, lty = c(2,1,2), lwd = c(2,2,2),
+#' 	percentiles=c(0,50,100), cex.axis = 1.2, lty = c(2,1,2), lwd = c(2,2,2),
 #'      col = c("black","blue","grey50"))
-#' 
-#' A1 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_1_dat"))
-#' A2 <- read_datasets(file.path(system.file(package = "eaf"), "extdata", "ALG_2_dat"))
+#'
+#' extdata_path <- system.file(package = "eaf", "extdata")
+#' A1 <- read_datasets(file.path(extdata_path, "ALG_1_dat.xz"))
+#' A2 <- read_datasets(file.path(extdata_path, "ALG_2_dat.xz"))
 #' eafplot(A1, percentiles = 50, sci.notation = TRUE)
 #' eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
 #' 
@@ -602,6 +635,7 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #'          legend.pos = "bottomright")
 #' }
 #' @export
+#'@md
 eafplot.default <-
   function (x, sets = NULL, groups = NULL,
             percentiles = c(0,50,100),
@@ -614,6 +648,7 @@ eafplot.default <-
             lty = c("dashed", "solid", "solid", "solid", "dashed"),
             lwd = 1.75,
             pch = NA,
+            # FIXME: this allows partial matching if cex is passed, so passing cex has not effect. 
             cex.pch = par("cex"),
             las = par("las"),
             legend.pos = "topright",
@@ -658,7 +693,7 @@ eafplot.default <-
     if (!is.null(sets)) x <- cbind(x, sets)
     x <- check.eaf.data(x)
     sets <- x[, 3L]
-    x <- x[,1:2]
+    x <- as.matrix(x[,1:2])
     x <- matrix.maximise(x, maximise)
 
     # Transform EAF matrix into attsurfs list.
@@ -705,7 +740,11 @@ eafplot.default <-
   ##     parameters 'xaxp' and 'yaxp' are set when the user coordinate
   ##     system is set up, and is not consulted when axes are drawn.
   ##     'len' _is unimplemented_ in R.
-  op <- par(cex = 1.0, cex.lab = 1.1, cex.axis = 1.0, lab = c(10,5,7))
+  args <- list(...)
+  args <- args[names(args) %in% c("cex", "cex.lab", "cex.axis", "lab")]
+  par_default <- list(cex = 1.0, cex.lab = 1.1, cex.axis = 1.0, lab = c(10,5,7))
+  par_default <- modifyList(par_default, args)
+  op <- par(par_default)
   on.exit(par(op))
   
   plot(xlim, ylim, type = "n", xlab = "", ylab = "",
@@ -990,7 +1029,6 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
                #print(length(col))
                ## The maximum value should also be painted.
                polycol[polycol > length(col)] <- length(col)
-               polycol[polycol > length(col)] <- length(col)
                #print(eafdiff)
                #print(col[polycol])
                polygon(eafdiff[,1], eafdiff[,2], border = NA, col = col[polycol])
@@ -1028,21 +1066,21 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #' @param data.left,data.right Data frames corresponding to the input data of
 #'   left and right sides, respectively. Each data frame has at least three
 #'   columns, the third one being the set of each point. See also
-#'   \code{\link{read_datasets}}.
+#'   [read_datasets()].
 #' 
 #' @param col A character vector of three colors for the magnitude of the
 #'   differences of 0, 0.5, and 1. Intermediate colors are computed
-#'   automatically given the value of \code{intervals}.
+#'   automatically given the value of `intervals`.
 #' 
-#' @param intervals An integer or a character vector. The
-#'   absolute range of the differences [0,1] is partitioned into the number
+#' @param intervals (`integer(1)`|`character()`) \cr The
+#'   absolute range of the differences \eqn{[0, 1]} is partitioned into the number
 #'   of intervals provided. If an integer is provided, then labels for each
 #'   interval are  computed automatically. If a character vector is
 #'   provided, its length is taken as the number of intervals.
 #' 
 #' @param percentiles The percentiles of the EAF of each side that will be
-#'   plotted as attainment surfaces. \code{NA} does not plot any. See
-#'   \code{\link{eafplot.default}}.
+#'   plotted as attainment surfaces. `NA` does not plot any. See
+#'   [eafplot.default()].
 #' 
 #' @param full.eaf Whether to plot the EAF of each side instead of the
 #'   differences between the EAFs.
@@ -1051,12 +1089,13 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'   (\samp{points}) or whether to color the areas that have at least a
 #'   certain value (\samp{area}).
 #' 
-#'@param legend.pos The position of the legend. See \code{\link{legend}}.  A value of \code{"none"} hides the legend.
+#'@param legend.pos The position of the legend. See [legend()].  A value of
+#'   `"none"` hides the legend.
 #' 
 #'@param title.left,title.right Title for left and right panels, respectively.
 #'  
 #' @param xlim,ylim,cex,cex.lab,cex.axis Graphical parameters, see
-#'   \code{\link{plot.default}}.
+#'   [plot.default()].
 #' 
 #' @template arg_maximise
 #' 
@@ -1068,11 +1107,11 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #' @param left.panel.last,right.panel.last An expression to be evaluated after
 #'   plotting has taken place on each panel (left or right). This can be useful
 #'   for adding points or text to either panel.  Note that this works by lazy
-#'   evaluation: passing this argument from other \code{plot} methods may well
+#'   evaluation: passing this argument from other `plot` methods may well
 #'   not work since it may be evaluated too early.
 #' 
 #' @param ... Other graphical parameters are passed down to
-#'   \code{\link{plot.default}}.
+#'   [plot.default()].
 #' 
 #' @details
 #'   This function calculates the differences between the EAFs of two
@@ -1084,22 +1123,22 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'   may exist. In addition, it also plots the 50\%-attainment surface of
 #'   each data set.
 #'   
-#'   With \code{type = "point"}, only the points where there is a change in
+#'   With `type = "point"`, only the points where there is a change in
 #'   the value of the EAF difference are plotted. This means that for areas
 #'   where the EAF differences stays constant, the region will appear in
 #'   white even if the value of the differences in that region is
 #'   large. This explains "white holes" surrounded by black
 #'   points.
 #' 
-#'   With \code{type = "area"}, the area where the EAF differences has a
+#'   With `type = "area"`, the area where the EAF differences has a
 #'   certain value is plotted.  The idea for the algorithm to compute the
 #'   areas was provided by Carlos M. Fonseca.  The implementation uses R
 #'   polygons, which some PDF viewers may have trouble rendering correctly
 #'   (See
 #'   \url{https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders}). Plots (should) look correct when printed.
 #' 
-#'   Large differences that appear when using \code{type = "points"} may
-#'   seem to dissapear when using \code{type = "area"}. The explanation is
+#'   Large differences that appear when using `type = "points"` may
+#'   seem to disappear when using `type = "area"`. The explanation is
 #'   the points size is independent of the axes range, therefore, the
 #'   plotted points may seem to cover a much larger area than the actual
 #'   number of points. On the other hand, the areas size is plotted with
@@ -1112,34 +1151,36 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #' 
 #' @return No return value.
 #' 
-#' @seealso    \code{\link{read_datasets}}, \code{\link{eafplot}}
+#' @seealso    [read_datasets()], [eafplot()]
 #' 
 #' @examples
-#' A1 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_1_dat"))
-#' A2 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "ALG_2_dat"))
+#' extdata_dir <- system.file(package="eaf", "extdata") 
+#' A1 <- read_datasets(file.path(extdata_dir, "ALG_1_dat.xz"))
+#' A2 <- read_datasets(file.path(extdata_dir, "ALG_2_dat.xz"))
 #' \donttest{# These take time
-#' eafdiffplot(A1, A2, full.eaf = TRUE)
-#' eafdiffplot(A1, A2, type = "area")
-#' eafdiffplot(A1, A2, type = "point", sci.notation = TRUE)
+#'   eafdiffplot(A1, A2, full.eaf = TRUE)
+#'   eafdiffplot(A1, A2, type = "area")
+#'   eafdiffplot(A1, A2, type = "point", sci.notation = TRUE)
 #' }
 #' # A more complex example
-#' a1 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "wrots_l100w10_dat"))
-#' a2 <- read_datasets(file.path(system.file(package="eaf"), "extdata", "wrots_l10w100_dat"))
+#' a1 <- read_datasets(file.path(extdata_dir, "wrots_l100w10_dat"))
+#' a2 <- read_datasets(file.path(extdata_dir, "wrots_l10w100_dat"))
 #' DIFF <- eafdiffplot(a1, a2, col = c("white", "blue", "red"), intervals = 5,
-#' type = "point",
-#'             title.left = expression("W-RoTS, " * lambda * "=" * 100 * ", " * omega * "=" * 10),
-#'             title.right= expression("W-RoTS, " * lambda * "=" * 10 *
-#' ", " * omega * "=" * 100),
-#'             right.panel.last={ abline(a = 0, b = 1, col = "red", lty = "dashed")})
+#'                     type = "point",
+#'                     title.left=expression("W-RoTS," ~ lambda==100 * "," ~ omega==10),
+#'                     title.right=expression("W-RoTS," ~ lambda==10 * "," ~ omega==100),
+#'                     right.panel.last={
+#'                       abline(a = 0, b = 1, col = "red", lty = "dashed")})
 #' DIFF$right[,3] <- -DIFF$right[,3]
 #' 
-#' ## Save the values to a file.
-#' # write.table(rbind(DIFF$left,DIFF$right),
-#' #             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
-#' #             quote = FALSE, row.names = FALSE, col.names = FALSE)
-#' 
-#' @keywords graphs
+#'  ## Save the values to a file.
+#'  # write.table(rbind(DIFF$left,DIFF$right),
+#'  #             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
+#'  #             quote = FALSE, row.names = FALSE, col.names = FALSE)
+#'  
+#'@keywords graphs
 #'@export
+#'@md
 eafdiffplot <-
   function(data.left, data.right,
            col = c("#FFFFFF", "#808080","#000000"),
@@ -1174,8 +1215,10 @@ eafdiffplot <-
 
   maximise <- as.logical(maximise)
 
-  data.left <- matrix.maximise(check.eaf.data(data.left), maximise)
-  data.right <- matrix.maximise(check.eaf.data(data.right), maximise)
+  data.left <- check.eaf.data(data.left)
+  data.left[,1:2] <- matrix.maximise(data.left[,1:2], maximise)
+  data.right <- check.eaf.data(data.right)
+  data.right[,1:2] <- matrix.maximise(data.right[,1:2], maximise)
 
   attsurfs.left <- attsurfs.right <- list()
   if (!any(is.na(percentiles))) {
@@ -1193,22 +1236,21 @@ eafdiffplot <-
   on.exit(par(def.par))
 
   if (full.eaf) {
-    DIFF <- list()
     if (type == "area") {
       lower.boundaries <- 0:(length(intervals)-1) * 100 / length(intervals)
-      DIFF$left <- compute.eaf (data.left, percentiles = lower.boundaries)
-      DIFF$right <- compute.eaf (data.right, percentiles = lower.boundaries)
+      diff_left <- compute.eaf (data.left, percentiles = lower.boundaries)
+      diff_right <- compute.eaf (data.right, percentiles = lower.boundaries)
     } else if (type == "point") {
-      DIFF$left <- compute.eaf (data.left)
-      DIFF$right <- compute.eaf (data.right)
+      diff_left <- compute.eaf (data.left)
+      diff_right <- compute.eaf (data.right)
       # Since plot.eafdiff.side uses floor to calculate the color, and
       # we want color[100] == color[99].
-      DIFF$left[DIFF$left[,3] == 100, 3] <- 99
-      DIFF$right[DIFF$right[,3] == 100, 3] <- 99
+      diff_left[diff_left[,3] == 100, 3] <- 99
+      diff_right[diff_right[,3] == 100, 3] <- 99
     }
     # Convert percentile into color index
-    DIFF$left[,3] <- DIFF$left[,3] * length(intervals) / 100
-    DIFF$right[,3] <- DIFF$right[,3] * length(intervals) / 100
+    diff_left[,3] <- diff_left[,3] * length(intervals) / 100
+    diff_right[,3] <- diff_right[,3] * length(intervals) / 100
     #remove(data.left,data.right,data.combined) # Free memory?
   } else {
     if (type == "area") {
@@ -1218,8 +1260,10 @@ eafdiffplot <-
       DIFF <- compute.eafdiff (data.combined, intervals = length(intervals))
       #remove(data.combined) # Free memory?
     }
+    diff_left <- DIFF$left
+    diff_right <- DIFF$right
   }
-
+    
   # FIXME: This can be avoided and just taken from the full EAF.
   grand.attsurf <- compute.eaf.as.list (data.combined, c(0, 100))
   grand.best <- grand.attsurf[["0"]]
@@ -1227,15 +1271,15 @@ eafdiffplot <-
 
   xlim <- get.xylim(xlim, maximise[1],
                     data = c(grand.best[,1], grand.worst[,1],
-                             range.finite(DIFF$left[,1]), range.finite(DIFF$right[,1])))
+                             range.finite(diff_left[,1]), range.finite(diff_right[,1])))
   ylim <- get.xylim(ylim, maximise[2],
                     data = c(grand.best[,2], grand.worst[,2],
-                             range.finite(DIFF$left[,2]), range.finite(DIFF$right[,2])))
+                             range.finite(diff_left[,2]), range.finite(diff_right[,2])))
 
   grand.best <- matrix.maximise(grand.best, maximise)
   grand.worst <- matrix.maximise(grand.worst, maximise)
-  DIFF$left <- matrix.maximise(DIFF$left, maximise)
-  DIFF$right <- matrix.maximise(DIFF$right, maximise)
+  diff_left[,1:2] <- matrix.maximise(diff_left[,1:2], maximise)
+  diff_right[,1:2] <- matrix.maximise(diff_right[,1:2], maximise)
   
   # FIXME: This does not generate empty space between the two plots, but the
   # plots are not squared.
@@ -1266,8 +1310,8 @@ eafdiffplot <-
   } else {
     attsurfs <- attsurfs.left
   }
-  
-  plot.eafdiff.side (DIFF$left,
+    
+  plot.eafdiff.side (diff_left,
                      attsurfs = attsurfs,
                      col = col,
                      type = type, full.eaf = full.eaf,
@@ -1291,8 +1335,7 @@ eafdiffplot <-
   } else {
     attsurfs <- attsurfs.right
   }
-  
-  plot.eafdiff.side (DIFF$right,
+  plot.eafdiff.side (diff_right,
                      attsurfs = attsurfs,
                      col = col,
                      type = type, full.eaf = full.eaf,
@@ -1301,15 +1344,18 @@ eafdiffplot <-
                      side = "right", maximise = maximise,
                      sci.notation = sci.notation, ...)
   right.panel.last
-  invisible(DIFF)
+  invisible(list(left=diff_left, right=diff_right))
 }
 
 # Create labels:
 # eaf:::seq.intervals.labels(seq(0,1, length.out=5), digits = 1)
 # "[0.0, 0.2)" "[0.2, 0.4)" "[0.4, 0.6)" "[0.6, 0.8)" "[0.8, 1.0]"
+# FIXME: Add examples and tests
 seq.intervals.labels <- function(s, first.open = FALSE, last.open = FALSE,
                                  digits = NULL)
 {
+  # FIXME:  This should use:
+  # levels(cut(0, s, dig.lab=digits, include.lowest=TRUE, right=FALSE))
   s <- formatC(s, digits = digits, format = if (is.null(digits)) "g" else "f")
   if (length(s) < 2) stop ("sequence must have at least 2 values")
   intervals <- paste0("[", s[-length(s)], ", ", s[-1], ")")
@@ -1320,6 +1366,135 @@ seq.intervals.labels <- function(s, first.open = FALSE, last.open = FALSE,
     substr(intervals[length(intervals)], len, len+1) <- "]"
   }
   return(intervals)
+}
+
+#' Plot the Empirical Attainment Function for two objectives
+#' 
+#' Computes and plots the Empirical Attainment Function, either as
+#' attainment surfaces for certain percentiles or as points.
+#'
+#' This function can be used to plot random sets of points like those obtained
+#' by different runs of biobjective stochastic optimization algorithms.  An EAF
+#' curve represents the boundary separating points that are known to be
+#' attainable (that is, dominated in Pareto sense) in at least a fraction
+#' (quantile) of the runs from those that are not. The median EAF represents
+#' the curve where the fraction of attainable points is 50\%.  In single
+#' objective optimization the function can be used to plot the profile of
+#' solution quality over time of a collection of runs of a stochastic optimizer.
+#' 
+#' @param x Either a matrix of data values, or a data frame, or a list of
+#'     data frames of exactly three columns.
+#'
+#' @keywords graphs
+#' @export
+eafplot <- function(x, ...) UseMethod("eafplot")
+
+
+#' @describeIn eafplot Formula interface
+#'
+#'@param formula A formula of the type: \code{time + cost ~ run | instance}
+#'     will draw \code{time} on the x-axis and \code{cost} on the y-axis. If \code{instance} is
+#'     present the plot is conditional to the instances.
+#' 
+#'@param data Dataframe containing the fields mentioned in the formula and in groups.
+#'@export
+eafplot.formula <- function(formula, data, groups = NULL, subset = NULL, ...)
+{
+  ## formula of type time+cost~run|inst, groups=alg
+  if (missing(formula))
+    stop("formula missing")
+ 
+  if ((length(formula) != 3L) || (length(formula[[2L]]) != 3L))
+    stop("incorrect specification for 'formula'")
+
+  mf <- modeltools::ModelEnvFormula(formula = formula, data = data,
+                                    subset = subset, designMatrix = FALSE,
+                                    responseMatrix = FALSE, ...)
+
+  ### extract data from the ModelEnv object
+  points <- mf@get("response")
+  sets <- mf@get("input")
+  cond <- NULL
+  if (length(mf@formula) == 3L)
+    cond <- as.list(mf@get("blocks"))
+
+  groups <- eval(substitute(groups), data, environment(formula))
+
+  if (!is.null(groups) && !is.factor(groups))
+    stop("groups must be a factor")
+  
+  if (length(cond) == 0)
+    {
+      strip <- FALSE
+      cond <- list(gl(1, length(points)))
+    }
+
+  condlevels <- lapply(cond, levels)
+  cond.max.level <- unlist(lapply(cond, nlevels))
+
+  npackets <- prod(cond.max.level)
+
+  panel.args <- vector(mode = "list", length = npackets)
+
+  packet.sizes <- numeric(npackets)
+  if (npackets > 1)
+    {
+      dim(packet.sizes) <- sapply(condlevels, length)
+      dimnames(packet.sizes) <- lapply(condlevels, as.character)
+    }
+
+  cond.current.level <- rep(1, length(cond))
+
+  for (packet.number in seq_len(npackets)) {
+    id <- .compute.packet(cond, cond.current.level)
+    packet.sizes[packet.number] <- sum(id)
+
+    panel.args[[packet.number]] <-
+      list(points = as.matrix(points[id,]), sets = as.numeric(sets[id,]),
+           groups=groups[id])
+    ## MARCO: I do not think we need to care about subscripts... or do we?
+    #if (subscripts)
+    #   panel.args[[packet.number]]$subscripts <-
+    #                   subscr[id]
+    cond.current.level <- .cupdate(cond.current.level, cond.max.level)
+  }
+  op <- par(no.readonly = TRUE)  # save default, for resetting...
+  on.exit(par(op))
+  ## FIXME: I don't think this is doing the right thing.
+  par(mfrow = .check.layout(NULL,cond.max.level)[2:3])
+  for (i in seq_len(length(panel.args))) {
+    eafplot.default(panel.args[[i]]$points,
+                    panel.args[[i]]$sets,
+                    panel.args[[i]]$groups,
+                    ...)
+  }
+  invisible()
+}
+
+
+#' @describeIn eafplot List interface for lists of data.frames or matrices
+#' 
+#'@export 
+eafplot.list <- function(x, ...)
+{
+  if (!is.list(x))
+    stop("'x' must be a list of data.frames or matrices with exactly three columns")
+
+  groups <- if (!is.null(names(x))) names(x) else 1:length(x)
+
+  check.elem <- function(elem) {
+    elem <- check.eaf.data(elem)
+    if (ncol(elem) != 3L)
+      stop("Each element of the list have exactly three columns. If you have grouping and conditioning variables, please consider using this format: 'eafplot(formula, data, ...)'")
+    return(elem)
+  }
+  x <- sapply(x, check.elem)  
+  groups <- rep(groups, sapply(x, nrow))
+  x <- do.call(rbind, x)
+  
+  eafplot(as.matrix(x[,c(1,2)]),
+          sets = as.numeric(as.factor(x[, 3])),
+          groups = groups, ...)
 }
 
 ### Local Variables:

@@ -1,4 +1,5 @@
-#'Plots of the Empirical Attainment Function
+#' Computation and visualization of the empirical attainment function (EAF) for
+#' the analysis of random sets in multi-criterion optimization.
 #'
 #'  The empirical attainment function (EAF) describes the probabilistic
 #'  distribution of the outcomes obtained by a stochastic algorithm in the
@@ -9,7 +10,7 @@
 #'  problems and help in identifying certain algorithmic behaviors in a
 #'  graphical way. 
 #'
-#' Functions:
+#' @section Functions:
 #'
 #'\tabular{rl}{
 #'[eafdiffplot()] \tab  Empirical attainment function differences\cr
@@ -17,7 +18,7 @@
 #'[read_datasets()] \tab  Read several data.frame sets
 #'}
 #'
-#'Data:
+#' @section Data:
 #'
 #'\describe{
 #'\item{[`gcp2x2`]}{  Metaheuristics for solving the Graph Vertex Coloring Problem}
@@ -37,6 +38,8 @@
 #'}
 #'
 #' @import graphics grDevices stats
+#' @importFrom Rdpack reprompt
+#' @importFrom utils modifyList
 #'
 #' @useDynLib eaf, .registration = TRUE
 #'
@@ -51,26 +54,12 @@
 #'  \enc{Mickaël}{Mickael} Binois.
 #'
 #' @references
-#'  V. Grunert da Fonseca, C. M. Fonseca, and A. O. Hall, _Inferential
-#'  performance assessment of stochastic optimisers and the attainment
-#'  function_, in Evolutionary Multi-Criterion Optimization. First
-#'  International Conference, EMO 2001 (E. Zitzler, K. Deb, L. Thiele,
-#'  C. A. Coello Coello, and D. Corne, eds.), vol. 1993 of Lecture Notes
-#'  in Computer Science, pp. 213-225, Berlin: Springer, 2001.
+#' 
+#' \insertRef{Grunert01}{eaf}
 #'
-#'  V. Grunert da Fonseca and C. M. Fonseca, _The attainment-function
-#'  approach to stochastic multiobjective optimizer assessment and
-#'  comparison_. In T. Bartz-Beielstein, M. Chiarandini, L. Paquete, and
-#'  M. Preuss, editors, Experimental Methods for the Analysis of
-#'  Optimization Algorithms, pages 103-130, Springer, Berlin, Germany,
-#'  2010.
+#' \insertRef{GruFon2009:emaa}{eaf}
 #'  
-#'  M. \enc{López-Ibáñez}{Lopez-Ibanez}, L. Paquete, and
-#'  T. \enc{Stützle}{Stuetzle}. _Exploratory Analysis of Stochastic Local
-#'  Search Algorithms in Biobjective Optimization_. In T. Bartz-Beielstein,
-#'  M. Chiarandini, L. Paquete, and M. Preuss, editors, Experimental Methods
-#'  for the Analysis of Optimization Algorithms, pages 209–222. Springer,
-#'  Berlin, Germany, 2010. doi: 10.1007/978-3-642-02538-9_9
+#' \insertRef{LopPaqStu09emaa}{eaf}
 #'  
 #'@keywords package graphs
 #'@concept multivariate
@@ -89,8 +78,8 @@
 #'	percentiles = c(0,50,100), cex = 1.4, lty = c(2,1,2),lwd = c(2,2,2),
 #'        col = c("black","blue","grey50"))
 #'extdata_path <- system.file(package="eaf","extdata")
-#'A1 <- read_datasets(file.path(extdata_path,"ALG_1_dat"))
-#'A2 <- read_datasets(file.path(extdata_path,"ALG_2_dat"))
+#'A1 <- read_datasets(file.path(extdata_path,"ALG_1_dat.xz"))
+#'A2 <- read_datasets(file.path(extdata_path,"ALG_2_dat.xz"))
 #'eafplot(A1, percentiles=c(50))
 #'eafplot(list(A1=A1, A2=A2), percentiles=c(50))
 #'eafdiffplot(A1, A2)
@@ -114,9 +103,7 @@
 #'      network. The second column is filled with `NA`}
 #'  }
 #' 
-#'@source Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. **Operational Optimisation of Water Distribution
-#'  Networks**. PhD thesis, School of Engineering and the Built Environment,
-#'  Edinburgh Napier University, UK, 2009.
+#'@source \insertRef{LopezIbanezPhD}{eaf}.
 #'
 #' @examples
 #'data(HybridGA)
@@ -134,10 +121,7 @@
 #'  A data frame as produced by [read_datasets()]. The second
 #'  column measures time in seconds and corresponds to a maximisation problem.
 #'
-#' @source
-#'  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. Operational Optimisation of Water Distribution
-#'  Networks. PhD thesis, School of Engineering and the Built Environment,
-#'  Edinburgh Napier University, UK, 2009.
+#' @source \insertRef{LopezIbanezPhD}{eaf}
 #'
 #'@examples 
 #' data(HybridGA)
@@ -157,10 +141,7 @@
 #'@format 
 #'  A data frame as produced by [read_datasets()].
 #'
-#' @source
-#'  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. Operational Optimisation of Water Distribution
-#'  Networks. PhD thesis, School of Engineering and the Built Environment,
-#'  Edinburgh Napier University, UK, 2009.
+#' @source \insertRef{LopezIbanezPhD}{eaf}
 #'
 #'@examples 
 #'data(HybridGA)
@@ -181,10 +162,7 @@
 #'@format 
 #'  A data frame as produced by [read_datasets()].
 #'
-#'@source
-#'  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. Operational Optimisation of Water Distribution
-#'  Networks. PhD thesis, School of Engineering and the Built Environment,
-#'  Edinburgh Napier University, UK, 2009.
+#'@source \insertRef{LopezIbanezPhD}{eaf}
 #'
 #'@examples 
 #'data(HybridGA)
@@ -198,7 +176,7 @@
 #' Metaheuristics for solving the Graph Vertex Coloring Problem
 #'
 #'  Two metaheuristic algorithms, TabuCol (Hertz et al., 1987) and
-#'  simulated annealing (Johnson et al., 1991), to find a good
+#'  simulated annealing \citep{JohAraMcGSch1991}, to find a good
 #'  approximation of the chromatic number of two random graphs. The data
 #'  here has the only goal of providing an example of use of eafplot for
 #'  comparing algorithm performance with respect to both time and quality
@@ -227,19 +205,13 @@
 #'  time was then normalized on a scale from 0 to 1 to make it instance
 #'  independent.
 #'
-#'@source M. Chiarandini (2005). Stochastic local search methods for highly
-#'   constrained combinatorial optimisation problems. Ph.D. thesis, Computer
-#'   Science Department, Darmstadt University of Technology, Darmstadt,
-#'   Germany. page 138.
+#'@source \insertRef{ChiarandiniPhD}{eaf} (page 138)
 #'
 #'@references 
 #'  A. Hertz and D. de Werra. Using Tabu Search Techniques for Graph
 #'  Coloring. Computing, 1987, 39(4), 345-351.
 #'
-#'  D.S. Johnson, C.R. Aragon, L.A. McGeoch and C. Schevon. Optimization
-#'  by Simulated Annealing: An Experimental Evaluation; Part II, Graph
-#'  Coloring and Number Partitioning. Operations Research, 1991, 39(3),
-#'  378-406
+#' \insertAllCited{}
 #'
 #'@examples 
 #' data(gcp2x2)
@@ -264,8 +236,7 @@
 #'
 #'@source
 #'  
-#' M. Binois, D. Ginsbourger and O. Roustant. Quantifying Uncertainty on Pareto Fronts with
-#' Gaussian process conditional simulations, _European Journal of Operational Research_, 2015, 243(2), 386-394. 
+#' \insertRef{BinGinRou2015gaupar}{eaf}
 #'
 #'@examples 
 #' data(CPFs)

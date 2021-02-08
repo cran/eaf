@@ -4,17 +4,17 @@
 \name{HybridGA}
 \alias{HybridGA}
 \title{Results of Hybrid GA on vanzyl and Richmond water networks}
-\format{A list with two data frames, each of them with three columns, as
+\format{
+A list with two data frames, each of them with three columns, as
 produced by \code{\link[=read_datasets]{read_datasets()}}.
 \describe{
-\item{\code{$vanzyl}}{data frame of results on vanzyl network}
-\item{\code{$richmond}}{data frame of results on Richmond
+\item{\verb{$vanzyl}}{data frame of results on vanzyl network}
+\item{\verb{$richmond}}{data frame of results on Richmond
 network. The second column is filled with \code{NA}}
-}}
+}
+}
 \source{
-Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. \strong{Operational Optimisation of Water Distribution
-Networks}. PhD thesis, School of Engineering and the Built Environment,
-Edinburgh Napier University, UK, 2009.
+\insertRef{LopezIbanezPhD}{eaf}.
 }
 \usage{
 HybridGA

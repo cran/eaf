@@ -4,7 +4,8 @@
 \name{gcp2x2}
 \alias{gcp2x2}
 \title{Metaheuristics for solving the Graph Vertex Coloring Problem}
-\format{A data frame with 3133 observations on the following 6 variables.
+\format{
+A data frame with 3133 observations on the following 6 variables.
 \describe{
 \item{\code{alg}}{a factor with levels \code{SAKempeFI} and \code{TSinN1}}
 \item{\code{inst}}{a factor with levels \code{DSJC500.5} and
@@ -17,19 +18,17 @@ number of colors found in the corresponding run up to that time.}
 beginning of the run for each observation. A rescaling is applied.}
 \item{\code{titer}}{a numeric vector indicating iteration number
 corresponding to the observations.}
-}}
+}
+}
 \source{
-M. Chiarandini (2005). Stochastic local search methods for highly
-constrained combinatorial optimisation problems. Ph.D. thesis, Computer
-Science Department, Darmstadt University of Technology, Darmstadt,
-Germany. page 138.
+\insertRef{ChiarandiniPhD}{eaf} (page 138)
 }
 \usage{
 gcp2x2
 }
 \description{
 Two metaheuristic algorithms, TabuCol (Hertz et al., 1987) and
-simulated annealing (Johnson et al., 1991), to find a good
+simulated annealing \citep{JohAraMcGSch1991}, to find a good
 approximation of the chromatic number of two random graphs. The data
 here has the only goal of providing an example of use of eafplot for
 comparing algorithm performance with respect to both time and quality
@@ -49,9 +48,6 @@ data(gcp2x2)
 A. Hertz and D. de Werra. Using Tabu Search Techniques for Graph
 Coloring. Computing, 1987, 39(4), 345-351.
 
-D.S. Johnson, C.R. Aragon, L.A. McGeoch and C. Schevon. Optimization
-by Simulated Annealing: An Experimental Evaluation; Part II, Graph
-Coloring and Number Partitioning. Operations Research, 1991, 39(3),
-378-406
+\insertAllCited{}
 }
 \keyword{datasets}

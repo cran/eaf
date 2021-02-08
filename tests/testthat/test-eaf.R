@@ -1,8 +1,6 @@
 library(eaf)
 context("eaf")
-
-extdata.path <- function(file)
-  return(file.path(system.file(package = "eaf"), "extdata", file))
+source("helper-common.R")
 
 test_that("eaf", {
   #skip_on_cran()
@@ -20,7 +18,7 @@ test_that("eaf", {
     #saveRDS(x, paste0(basename(file), "-eaf.rds"))
     return(x)
   }
-  expect_equal(test.eaf.file(extdata.path("ALG_1_dat")),
+  expect_equal(test.eaf.file(extdata.path("ALG_1_dat.xz")),
                readRDS("ALG_1_dat-eaf.rds"))
   expect_equal(test.eaf.dataset("SPEA2relativeRichmond"),
                readRDS("SPEA2relativeRichmond-eaf.rds"))

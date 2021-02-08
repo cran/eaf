@@ -9,8 +9,6 @@
 #include <string.h>
 #include <assert.h>
 
-
-
 static const char stdin_name[] = "<stdin>";
 
 // FIXME: Should this be %-16.15g ?
@@ -32,15 +30,16 @@ int
 read_double_data (const char *filename, double **data_p, 
                   int *nobjs_p, int **cumsizes_p, int *nsets_p);
 
+#ifndef R_PACKAGE
+
 void vector_fprintf (FILE *stream, const double * vector, int size);
 void vector_printf (const double *vector, int size);
 
 int write_sets (FILE *outfile, const double *data, int ncols, 
                 const int *cumsizes, int nruns);
-int 
-write_sets_filtered (FILE *outfile, const double *data, int ncols, 
-                     const int *cumsizes, int nruns, 
-                     const bool *write_p);
+int write_sets_filtered (FILE *outfile, const double *data, int ncols, 
+                         const int *cumsizes, int nruns, 
+                         const bool *write_p);
 
 static inline const signed char *
 read_minmax (const char *str, int *nobj)
@@ -58,7 +57,7 @@ read_minmax (const char *str, int *nobj)
 
     int len = strlen (str);
     bool all_ignored = true;
-    minmax = malloc (sizeof(signed char) * len);
+    minmax = malloc (sizeof(signed char) * MAX(len, *nobj));
     for (i = 0; i < len; i++) {
         switch (str[i])
         {
@@ -84,10 +83,16 @@ read_minmax (const char *str, int *nobj)
         warnprintf ("all objectives ignored because of --obj=%s\n", str);
         exit (EXIT_SUCCESS);
     }
-
+    // FIXME: How to adjust minmax dynamically according to the number of objectives?
+    if (len < *nobj) { // Cycle
+        for (i = 0; i < (*nobj - len); i++) {
+            minmax[len + i] = minmax[i];
+        }
+    }
     *nobj = len;
     return minmax;
 }
+#endif
 
 static inline const bool *
 read_bitvector (const char *str, int *nobj)

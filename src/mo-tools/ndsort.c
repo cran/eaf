@@ -64,15 +64,16 @@ static void usage(void)
 "Perform nondominated sorting in a list of points.                        \n\n"
 
 "Options:\n"
+OPTION_HELP_STR
+OPTION_VERSION_STR
 " -h, --help          give  this summary and exit.                          \n"
 "     --version       print version number and exit.                        \n"
 " -v, --verbose       print some information (time, number of points, etc.) \n"
-" -q, --quiet         print as little as possible                           \n"
+OPTION_QUIET_STR
 //" -H, --hypervolume   use hypervolume contribution to break ties            \n"
 " -k, --keep-uevs     keep uniquely extreme values                          \n"
 " -r, --rank          don't break ties using hypervolume contribution       \n"
-" -o, --obj [+|-]...  specify whether each objective should be              \n"
-"                     minimised (-) or maximised (+)                        \n"
+OPTION_OBJ_STR
 "\n");
 }
 
@@ -133,7 +134,7 @@ int main(int argc, char *argv[])
     const signed char *minmax = NULL;
     bool only_rank_flag = false;
 //    bool hypervolume_flag = false;
-    bool keep_uevs_flag = false;
+//    bool keep_uevs_flag = false;
 
     /* see the man page for getopt_long for an explanation of these fields */
     static struct option long_options[] = {
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'k': // --keep-uevs
-            keep_uevs_flag = true;
+//            keep_uevs_flag = true;
             fprintf(stderr, "%s: --keep-uevs not implemented yet!\n",program_invocation_short_name);
             exit(EXIT_FAILURE);
             break;

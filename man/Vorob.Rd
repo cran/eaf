@@ -10,10 +10,18 @@ vorobT(x, reference)
 
 vorobDev(x, VE, reference)
 
-symDifPlot(x, VE, threshold, nlevels = 11, ve.col = "blue",
-  xlim = NULL, ylim = NULL, legend.pos = "topright",
-  main = "Symmetric deviation function", col.fun = function(n)
-  gray(seq(0, 0.9, length.out = n)^2))
+symDifPlot(
+  x,
+  VE,
+  threshold,
+  nlevels = 11,
+  ve.col = "blue",
+  xlim = NULL,
+  ylim = NULL,
+  legend.pos = "topright",
+  main = "Symmetric deviation function",
+  col.fun = function(n) gray(seq(0, 0.9, length.out = n)^2)
+)
 }
 \arguments{
 \item{x}{Either a matrix of data values, or a data frame, or a list of data
@@ -37,7 +45,7 @@ symmetric deviation.}
 \code{\link[graphics:legend]{legend()}}. A value of \code{"none"} hides the legend.}
 
 \item{col.fun}{function that creates a vector of \code{n} colors, see
-\code{\link[grDevices:heat.colors]{heat.colors()}}.}
+\code{\link[grDevices:palettes]{heat.colors()}}.}
 }
 \value{
 \code{vorobT} returns a list with elements \code{threshold},
@@ -83,9 +91,7 @@ symDifPlot(CPFs, res$VE, res$threshold, nlevels = 200, legend.pos = "none")
 symDifPlot(CPFs, res$VE, res$threshold, nlevels = 11, col.fun = heat.colors)
 }
 \references{
-M. Binois, D. Ginsbourger and O. Roustant (2015), Quantifying Uncertainty
-on Pareto Fronts with Gaussian process conditional simulations, European
-Journal of Operational Research, 243(2), 386-394.
+\insertRef{BinGinRou2015gaupar}{eaf}
 
 C. Chevalier (2013), Fast uncertainty reduction strategies relying on
 Gaussian process models, University of Bern, PhD thesis.

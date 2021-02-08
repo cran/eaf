@@ -9,8 +9,11 @@
 **eaf**: Empirical Attainment Function (EAF) Tools
 ================================================================
 
+<!-- badges: start -->
 [![CRAN Status](https://www.r-pkg.org/badges/version-last-release/eaf)](https://cran.r-project.org/package=eaf) [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/grand-total/eaf)](https://CRAN.R-project.org/package=eaf) [![Travis Build
 Status](https://travis-ci.org/MLopez-Ibanez/eaf.svg?branch=master)](https://travis-ci.org/MLopez-Ibanez/eaf)
+[![Codecov test coverage](https://codecov.io/gh/MLopez-Ibanez/eaf/branch/master/graph/badge.svg)](https://codecov.io/gh/MLopez-Ibanez/eaf?branch=master)
+<!-- badges: end -->
 
 [ [**Homepage**](http://lopez-ibanez.eu/eaftools) ]  [ [**GitHub**](https://github.com/MLopez-Ibanez/eaf) ]
 
@@ -19,9 +22,9 @@ Status](https://travis-ci.org/MLopez-Ibanez/eaf.svg?branch=master)](https://trav
 **Contributors:**
     [Manuel López-Ibáñez](http://lopez-ibanez.eu),
     [Marco Chiarandini](http://www.imada.sdu.dk/~marco),
-    [Carlos M. Fonseca](http://eden.dei.uc.pt/~cmfonsec),
-    [Luís Paquete](http://eden.dei.uc.pt/~paquete),
-    [Thomas Stützle](http://iridia.ulb.ac.be/~stuetzle),
+    [Carlos M. Fonseca](https://eden.dei.uc.pt/~cmfonsec/),
+    [Luís Paquete](https://eden.dei.uc.pt/~paquete/),
+    [Thomas Stützle](http://iridia.ulb.ac.be/~stuetzle/),
     and Mickaël Binois.
     
 ---------------------------------------
@@ -81,7 +84,7 @@ The first step before installing the **eaf** package is to [install R](https://c
     R, then
     
     ```r
-        install.packages(c("modeltools", "eaf"))
+        install.packages("eaf")
     ```
     
  2. [Download the **eaf** package from CRAN](https://cran.r-project.org/package=eaf) (you may also need to download and install
@@ -122,7 +125,7 @@ directory printed by the R command `system.file(package="eaf")`):
  * `extdata/` : Examples of utilization of the above programs. These are discussed in the corresponding [book chapter](#LopPaqStu09emaa) [1].
 
 In addition, the source code contains the following under `src/`:
- * `src/eaf` : This C program computes the empirical attainment function in 2 dimensions. It is NOT required by the other programs, but it is provided as a useful command-line utility. This version is based on the original code written by Carlos M. Fonseca available at http://www.tik.ee.ethz.ch/pisa/. Another version of the code that handles three dimensions is available at [Prof. Fonseca's website](http://eden.dei.uc.pt/~cmfonsec/software.html#aft).
+ * `src/eaf` : This C program computes the empirical attainment function in 2 dimensions. It is NOT required by the other programs, but it is provided as a useful command-line utility. This version is based on the original code written by Carlos M. Fonseca available at http://www.tik.ee.ethz.ch/pisa/. Another version of the code that handles three dimensions is available at [Prof. Fonseca's website](https://eden.dei.uc.pt/~cmfonsec/software.html).
  * `src/mo-tools` : Several tools for working with multi-objective data.
  
 For more information, consult the `README` files at each subdirectory.

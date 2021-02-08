@@ -5,12 +5,12 @@
 \alias{SPEA2minstoptimeRichmond}
 \title{Results of SPEA2 when minimising electrical cost and maximising the
 minimum idle time of pumps on Richmond water network.}
-\format{A data frame as produced by \code{\link[=read_datasets]{read_datasets()}}. The second
-column measures time in seconds and corresponds to a maximisation problem.}
+\format{
+A data frame as produced by \code{\link[=read_datasets]{read_datasets()}}. The second
+column measures time in seconds and corresponds to a maximisation problem.
+}
 \source{
-Manuel \enc{López-Ibáñez}{Lopez-Ibanez}. Operational Optimisation of Water Distribution
-Networks. PhD thesis, School of Engineering and the Built Environment,
-Edinburgh Napier University, UK, 2009.
+\insertRef{LopezIbanezPhD}{eaf}
 }
 \usage{
 SPEA2minstoptimeRichmond

@@ -44,6 +44,9 @@
 #define DEBUG 0
 #endif
 
+//#define OLD_ATTAINED(X) do { X; } while(0);
+#define OLD_ATTAINED(X) while(0) { X; };
+
 static int compare_x_asc (const void *p1, const void *p2)
 {
     objective_t x1 = **(objective_t **)p1;
@@ -67,20 +70,40 @@ eaf_t * eaf_create (int nobj, int nruns, int npoints)
     eaf->nobj = nobj;
     eaf->nruns = nruns;
     eaf->size = 0;
+    eaf->nreallocs = 0;
     /* Maximum is npoints, but normally it will be smaller, so at most
        log2(2 * nruns) realloc will occur.  */
     eaf->maxsize = 256 + npoints / (2 * nruns); 
-
+    /* fprintf(stderr,"maxsize %ld = %d npoints, %d nruns\n", */
+    /*         eaf->maxsize, npoints, nruns); */
     EAF_MALLOC (eaf->data, nobj * eaf->maxsize, sizeof(objective_t));
-    EAF_MALLOC (eaf->attained, nruns * eaf->maxsize, sizeof(bool));
+    eaf->bit_attained = malloc (bit_array_bytesize(nruns) * eaf->maxsize);
+    eaf->attained = NULL;
+    OLD_ATTAINED(eaf->attained = malloc(sizeof(bool) * nruns * eaf->maxsize));
     return eaf;
 }
 
 void eaf_delete (eaf_t * eaf)
 {
     free (eaf->data);
-    free (eaf->attained);
+    OLD_ATTAINED(free (eaf->attained));
+    free (eaf->bit_attained);
     free (eaf);
+}
+void eaf_realloc(eaf_t * eaf, size_t nobj)
+{
+    const int nruns = eaf->nruns;
+    eaf->data = realloc (eaf->data,
+                         sizeof(objective_t) * nobj * eaf->maxsize);
+    eaf_assert(eaf->data);
+    OLD_ATTAINED(
+        eaf->attained = realloc (eaf->attained, 
+                                 sizeof(bool) * nruns * eaf->maxsize);
+        eaf_assert(eaf->attained);
+        );
+    eaf->bit_attained = realloc (eaf->bit_attained, 
+                                 bit_array_bytesize(nruns) * eaf->maxsize);
+    eaf_assert(eaf->bit_attained);
 }
 
 objective_t *
@@ -91,19 +114,37 @@ eaf_store_point_help (eaf_t * eaf, int nobj,
 
     if (eaf->size == eaf->maxsize) {
         eaf_assert (eaf->size < INT_MAX / 2);
-        eaf->maxsize = eaf->maxsize * 2;
-        eaf->attained = realloc (eaf->attained, 
-                                 sizeof(bool) * nruns * eaf->maxsize);
-        eaf_assert(eaf->attained);
-        eaf->data = realloc (eaf->data,
-                             sizeof(objective_t) * nobj * eaf->maxsize);
-        eaf_assert(eaf->data);
+        //size_t old_maxsize = eaf->maxsize;
+        eaf->maxsize = (size_t) (eaf->maxsize * (1.0 + 1.0 / pow(2, eaf->nreallocs / 4.0)));
+        eaf->maxsize += 100; // At least we increase it by 100 points
+        /* fprintf(stderr,"maxsize (%d): %ld -> %ld\n", eaf->nreallocs, */
+        /*         old_maxsize, eaf->maxsize); */
+        eaf->nreallocs++;
+        // FIXME: We could save memory by only storing eaf->attained per point if requested.
+        eaf_realloc(eaf, nobj);
     }
-    /* We convert from int to bool to hopefully save space. */
+    // FIXME: provide a bit_array function to do this.
     for (int k = 0; k < nruns; k++) {
-        eaf->attained[(nruns * eaf->size) + k] = (bool) save_attained[k];
+        bit_array_set(bit_array_offset(eaf->bit_attained, eaf->size, nruns), k, (bool) save_attained[k]);
+        OLD_ATTAINED(eaf->attained[nruns * eaf->size + k] = (bool) save_attained[k]);
     }
+    OLD_ATTAINED(
+    bitset_check(bit_array_offset(eaf->bit_attained, eaf->size, eaf->nruns),
+                 eaf->attained + eaf->size * eaf->nruns, eaf->nruns));
+ 
     return eaf->data + nobj * eaf->size;
+}
+
+static void
+eaf_adjust_memory (eaf_t * eaf, int nobj)
+{
+    if (eaf->size < eaf->maxsize) {
+        //fprintf(stderr,"reduce size: %ld -> %ld\n", eaf->maxsize, eaf->size);
+        eaf->maxsize = eaf->size;
+        eaf_realloc(eaf, nobj);
+    }
+    OLD_ATTAINED(
+        bit_array_check(eaf->bit_attained, eaf->attained, eaf->size, eaf->nruns));
 }
 
 static void
@@ -120,7 +161,7 @@ eaf_store_point_2d (eaf_t * eaf, objective_t x, objective_t y,
 static void
 eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file, 
                 const objective_t *x, int nobj,
-                const bool *attained, int nruns)
+                const bit_array *attained, int nruns)
 {
     int count1 = 0;
     int count2 = 0;
@@ -139,13 +180,13 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
 
     if (indic_file) {
         fprintf (indic_file, "%d", 
-                 attained[0] ? (count1++,1) : 0);
+                 bit_array_get(attained, 0) ? (count1++,1) : 0);
         for (k = 1; k < nruns/2; k++) 
             fprintf (indic_file, "\t%d", 
-                     attained[k] ? (count1++,1) : 0);
+                     bit_array_get(attained, k) ? (count1++,1) : 0);
         for (k = nruns/2; k < nruns; k++)
             fprintf (indic_file, "\t%d", 
-                     attained[k] ? (count2++,1) : 0);
+                     bit_array_get(attained, k) ? (count2++,1) : 0);
 
         fprintf (indic_file, (indic_file == diff_file) ? "\t" : "\n");
     } else if (diff_file) {
@@ -160,11 +201,19 @@ eaf_print_line (FILE *coord_file, FILE *indic_file, FILE *diff_file,
 void
 eaf_print_attsurf (eaf_t * eaf, FILE *coord_file,  FILE *indic_file, FILE *diff_file)
 {
-    int i;
-    for (i = 0; i < eaf->size; i++) {
+    OLD_ATTAINED(
+    bit_array_check(eaf->bit_attained,
+                    eaf->attained, eaf->size, eaf->nruns));
+      
+    for (size_t i = 0; i < eaf->size; i++) {
         const objective_t *p = eaf->data + i * eaf->nobj;
+        /* bit_array_fprintf(stderr, eaf->bit_attained, eaf->nruns * eaf->size); */
+        OLD_ATTAINED(bitset_check(bit_array_offset(eaf->bit_attained, i, eaf->nruns),
+                                  eaf->attained + i * eaf->nruns, eaf->nruns));
         eaf_print_line (coord_file, indic_file, diff_file,
-                        p, eaf->nobj, eaf->attained + i * eaf->nruns, eaf->nruns);
+                        p, eaf->nobj,
+                        bit_array_offset(eaf->bit_attained, i, eaf->nruns),
+                        eaf->nruns);
     }
 }
 
@@ -197,7 +246,7 @@ eaf2d (const objective_t *data, const int *cumsize, int nruns,
     
     const int ntotal = cumsize[nruns - 1]; /* total number of points in data */
     int *runtab;	
-    int *attained, nattained, *save_attained;
+    int *attained, *save_attained;
     int k, j, l;
 
     /* Access to the data is made via two arrays of pointers: ix, iy
@@ -253,13 +302,12 @@ eaf2d (const objective_t *data, const int *cumsize, int nruns,
         int level = attlevel[l];
         int x = 0;
         int y = 0;
-        int run;
-
-        nattained = 0;
+        
+        int nattained = 0;
         for (k = 0; k < nruns; k++) attained[k] = 0;
 
         /* Start at upper-left corner */
-        run = runtab[(datax[x] - data) / nobj];
+        int run = runtab[(datax[x] - data) / nobj];
         attained[run]++;
         nattained++;
 
@@ -314,6 +362,7 @@ eaf2d (const objective_t *data, const int *cumsize, int nruns,
                                 save_attained);
 
         } while (x < ntotal - 1 && y < ntotal);
+        eaf_adjust_memory(eaf[l], nobj);            
     }
     free(save_attained);
     free(attained);
@@ -332,7 +381,7 @@ eaf2d (const objective_t *data, const int *cumsize, int nruns,
 static int
 eaf_max_size(eaf_t * const * eaf, int nlevels)
 {
-    int max_size = 0;
+    size_t max_size = 0;
     for (int a = 0; a < nlevels; a++) {
         if (max_size < eaf[a]->size)
             max_size = eaf[a]->size;
@@ -343,9 +392,12 @@ eaf_max_size(eaf_t * const * eaf, int nlevels)
 static int
 eaf_diff_color(const eaf_t * eaf, size_t k, int nruns)
 {
-    const bool *attained = eaf->attained + k * nruns;
+    const bit_array *bit_attained = bit_array_offset(eaf->bit_attained, k, nruns);
+    OLD_ATTAINED(
+        const bool *attained = eaf->attained + k * nruns;
+        bitset_check(bit_attained, attained, nruns););
     int count_left, count_right;
-    attained_left_right (attained, nruns/2, nruns, &count_left, &count_right);
+    attained_left_right (bit_attained, nruns/2, nruns, &count_left, &count_right);
     return count_left - count_right;
 }
 
@@ -700,16 +752,25 @@ eaf_print_polygon (FILE *stream, eaf_t **eaf, int nlevels)
     free(p);
 }
 
-size_t
-region_push (vector_objective *regions,
-             objective_t lx, objective_t ly,
-             objective_t ux, objective_t uy)
+static size_t
+rectangle_add(eaf_polygon_t * regions,
+              objective_t lx, objective_t ly,
+              objective_t ux, objective_t uy,
+              int color)
 {
-    vector_objective_push_back(regions, lx);
-    vector_objective_push_back(regions, ly);
-    vector_objective_push_back(regions, ux);
-    vector_objective_push_back(regions, uy);
-    return vector_objective_size(regions);
+#if 0
+    printf("rectangle_add: (" point_printf_format ", " point_printf_format ", " point_printf_format ", " point_printf_format ")[%d]\n", lx, ly, ux, uy, color);
+#endif
+    eaf_assert(lx < ux);
+    eaf_assert(ly < uy);
+    vector_objective *rect = &regions->xy;
+    vector_objective_push_back(rect, lx);
+    vector_objective_push_back(rect, ly);
+    vector_objective_push_back(rect, ux);
+    vector_objective_push_back(rect, uy);
+
+    vector_int_push_back(&regions->col, color);
+    return vector_objective_size(rect);
 }
 
 eaf_polygon_t *
@@ -718,12 +779,13 @@ eaf_compute_rectangles (eaf_t **eaf, int nlevels)
 #define eaf_point(A,K) (eaf[(A)]->data + (K) * nobj)
 #if 0
 #define printf_points(ka,kb,pka,pkb)                                           \
-    printf("%4d: pa[%d]=(" point_printf_format ", " point_printf_format "), pb[%d] = (" point_printf_format ", " point_printf_format ")\n", __LINE__, ka, pka[0], pka[1], kb, pkb[0], pkb[1])
+    printf("%4d: pa[%d]=(" point_printf_format ", " point_printf_format "), pb[%d] = (" point_printf_format ", " point_printf_format ")\n", \
+           __LINE__, ka, pka[0], pka[1], kb, pkb[0], pkb[1])
 #else
 #define printf_points(ka,kb,pka,pkb)                                           
 #endif    
     int nruns = eaf[0]->nruns;
-    int nobj = eaf[0]->nobj;
+    const int nobj = eaf[0]->nobj;
 
     eaf_assert(nruns % 2 == 0);
 
@@ -741,76 +803,56 @@ eaf_compute_rectangles (eaf_t **eaf, int nlevels)
         const int eaf_b_size = eaf[b]->size;
         if (eaf_a_size == 0 || eaf_b_size == 0) continue;
 
+        // FIXME: Skip points with color 0?
         init_colors(color, eaf[a], eaf_a_size, nruns);
         objective_t top = objective_MAX;
         int ka = 0, kb = 0;
-        const objective_t * pka = eaf_point (a, ka);
         const objective_t * pkb = eaf_point (b, kb);
+        const objective_t * pka = eaf_point (a, ka);
         printf_points(ka, kb, pka, pkb);
-        /* printf("attained[ka] ="); */
-        /* for (int k = 0; k < nruns; k++)  */
-        /*     printf(" %d", (eaf[a]->attained + ka * nruns)[k]  ? 1 : 0); */
-        /* printf("\n"); */
-        /* printf("attained[kb] ="); */
-        /* for (int k = 0; k < nruns; k++)  */
-        /*     printf(" %d", (eaf[b]->attained + kb * nruns)[k]  ? 1 : 0); */
-        /* printf("\n"); */
-        /* printf("attained[%d][%d,%d] = [%d, %d]\n", ka, a, b, */
-        /*        (eaf[a]->attained + ka * nruns)[a]  ? 1 : 0, */
-        /*        (eaf[a]->attained + ka * nruns)[b]  ? 1 : 0); */
-        /* printf("attained[%d][%d,%d] = [%d, %d]\n", kb, a, b, */
-        /*        (eaf[b]->attained + kb * nruns)[a]  ? 1 : 0, */
-        /*        (eaf[b]->attained + kb * nruns)[b]  ? 1 : 0); */
-               
-        eaf_assert(pka[0] <= pkb[0]);
-        /* It is possible that pka does not dominate pkb if their intersection
-           belongs to the next eaf level. */
-        if (pka[1] >= pkb[1]) goto pka_above_equal_pkb;
-                
-    pka_below_pkb:
-        eaf_assert(pka[1] < pkb[1]);
-        /* If pka[0] >= pkb[0] then no rectangle is created. */
-        if (pka[0] < pkb[0]) {
-            region_push(&regions->xy, pka[0], pkb[1], pkb[0], top);
-            vector_int_push_back(&regions->col, color[ka]);
-        } 
-        top = pkb[1];
-        kb++;
-        if (kb >= eaf_b_size) goto close_eaf;
-        pkb = eaf_point (b, kb);
-        printf_points(ka, kb, pka, pkb);
-        if (pka[1] < pkb[1]) goto pka_below_pkb;
+        while (true) {
 
-    pka_above_equal_pkb:
-        if (pka[0] < pkb[0]) {                    
-            region_push(&regions->xy, pka[0], pka[1], pkb[0], top);
-            vector_int_push_back(&regions->col, color[ka]);
-        } else {
-            // Handle repeated points
-            eaf_assert(pka[0] == pkb[0] && pka[1] == pkb[1]);
+            while (pka[1] < pkb[1]) {
+                if (pka[0] < pkb[0]) // pka strictly dominates pkb
+                    rectangle_add(regions, pka[0], pkb[1], pkb[0], top, color[ka]);
+                top = pkb[1];
+                kb++;
+                if (kb >= eaf_b_size) goto close_eaf;
+                pkb = eaf_point (b, kb);
+                printf_points(ka, kb, pka, pkb);
+            }
+            // pka_above_equal_pkb:
+            if (pka[0] < pkb[0]) { // pka does not strictly dominate pkb
+                rectangle_add(regions, pka[0], pka[1], pkb[0], top, color[ka]);
+            } else {
+                // Skip repeated points
+                eaf_assert(pka[0] == pkb[0] && pka[1] == pkb[1]);
+            }
             top = pka[1];
-            ka++, kb++;
+            ka++;
             if (ka >= eaf_a_size) goto next_eaf;
-            if (kb >= eaf_b_size) goto close_eaf;
-            
             pka = eaf_point (a, ka);
-            pkb = eaf_point (b, kb);
             printf_points(ka, kb, pka, pkb);
-            eaf_assert(pka[0] <= pkb[0]);
-            if (pka[1] >= pkb[1]) goto pka_above_equal_pkb;
-            else goto pka_below_pkb;
-        }
-        top = pka[1];
-        ka++;
-        if (ka >= eaf_a_size) goto next_eaf;
-        pka = eaf_point (a, ka);
-        printf_points(ka, kb, pka, pkb);
-        if (pka[1] >= pkb[1]) goto pka_above_equal_pkb;
-        else goto pka_below_pkb;
 
+            if (pkb[1] == top) { // pkb was not above but equal to previous pka
+                // Move to next pkb
+                kb++;
+                if (kb >= eaf_b_size) goto close_eaf;
+                pkb = eaf_point (b, kb);
+                printf_points(ka, kb, pka, pkb);
+            }
+        }
     close_eaf:
-        region_push(&regions->xy, pka[0], pka[1], objective_MAX, top);
-        vector_int_push_back(&regions->col, color[ka]);
+        // b is finished, add one rectangle for each pka point.
+        while (true) {
+            eaf_assert(pka[1] < pkb[1]);
+            rectangle_add(regions, pka[0], pka[1], objective_MAX, top, color[ka]);
+            top = pka[1];
+            ka++;
+            if (ka >= eaf_a_size) break;
+            pka = eaf_point (a, ka);
+            printf_points(ka, kb, pka, pkb);
+        }
     next_eaf:
         continue;
     }
