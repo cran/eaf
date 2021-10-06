@@ -10,8 +10,8 @@
 ================================================================
 
 <!-- badges: start -->
-[![CRAN Status](https://www.r-pkg.org/badges/version-last-release/eaf)](https://cran.r-project.org/package=eaf) [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/grand-total/eaf)](https://CRAN.R-project.org/package=eaf) [![Travis Build
-Status](https://travis-ci.org/MLopez-Ibanez/eaf.svg?branch=master)](https://travis-ci.org/MLopez-Ibanez/eaf)
+[![CRAN Status](https://www.r-pkg.org/badges/version-last-release/eaf)](https://cran.r-project.org/package=eaf) [![CRAN Downloads](https://cranlogs.r-pkg.org/badges/grand-total/eaf)](https://CRAN.R-project.org/package=eaf) [![R build
+status](https://github.com/MLopez-Ibanez/eaf/workflows/R-CMD-check/badge.svg)](https://github.com/MLopez-Ibanez/eaf/actions)
 [![Codecov test coverage](https://codecov.io/gh/MLopez-Ibanez/eaf/branch/master/graph/badge.svg)](https://codecov.io/gh/MLopez-Ibanez/eaf?branch=master)
 <!-- badges: end -->
 
@@ -24,7 +24,7 @@ Status](https://travis-ci.org/MLopez-Ibanez/eaf.svg?branch=master)](https://trav
     [Marco Chiarandini](http://www.imada.sdu.dk/~marco),
     [Carlos M. Fonseca](https://eden.dei.uc.pt/~cmfonsec/),
     [Luís Paquete](https://eden.dei.uc.pt/~paquete/),
-    [Thomas Stützle](http://iridia.ulb.ac.be/~stuetzle/),
+    [Thomas Stützle](https://iridia.ulb.ac.be/~stuetzle/),
     and Mickaël Binois.
     
 ---------------------------------------
@@ -54,7 +54,7 @@ visualization.
 **Relevant literature:**
 
  1. <a name="LopPaqStu09emaa"/>Manuel López-Ibáñez, Luís Paquete, and Thomas Stützle. [Exploratory Analysis of Stochastic Local Search Algorithms in Biobjective Optimization](https://doi.org/10.1007/978-3-642-02538-9_9). In T. Bartz-Beielstein, M. Chiarandini, L. Paquete, and M. Preuss, editors, *Experimental Methods for the Analysis of Optimization Algorithms*, pages 209–222. Springer, Berlin, Germany, 2010.<br>
-    (This chapter is also available in a slightly extended form as [Technical Report TR/IRIDIA/2009-015](http://iridia.ulb.ac.be/IridiaTrSeries/IridiaTr2009-015r001.pdf)).<br>
+    (This chapter is also available in a slightly extended form as [Technical Report TR/IRIDIA/2009-015](https://iridia.ulb.ac.be/IridiaTrSeries/IridiaTr2009-015r001.pdf)).<br>
     [ [bibtex](http://lopez-ibanez.eu/LopezIbanez_bib.html#LopPaqStu09emaa) |
     doi: [10.1007/978-3-642-02538-9_9](https://doi.org/10.1007/978-3-642-02538-9_9)
     | [Presentation](http://lopez-ibanez.eu/doc/gecco2010moworkshop.pdf) ]
@@ -125,7 +125,11 @@ directory printed by the R command `system.file(package="eaf")`):
  * `extdata/` : Examples of utilization of the above programs. These are discussed in the corresponding [book chapter](#LopPaqStu09emaa) [1].
 
 In addition, the source code contains the following under `src/`:
- * `src/eaf` : This C program computes the empirical attainment function in 2 dimensions. It is NOT required by the other programs, but it is provided as a useful command-line utility. This version is based on the original code written by Carlos M. Fonseca available at http://www.tik.ee.ethz.ch/pisa/. Another version of the code that handles three dimensions is available at [Prof. Fonseca's website](https://eden.dei.uc.pt/~cmfonsec/software.html).
+ * `src/eaf` : This C program computes the empirical attainment function in 2
+   or 3 dimensions. It is NOT required by the other programs, but it is
+   provided as a useful command-line utility. This version is based on the
+   original code written by Carlos M. Fonseca available at
+   http://www.tik.ee.ethz.ch/pisa/. A more recent version is available at [Prof. Fonseca's website](https://eden.dei.uc.pt/~cmfonsec/software.html).
  * `src/mo-tools` : Several tools for working with multi-objective data.
  
 For more information, consult the `README` files at each subdirectory.
