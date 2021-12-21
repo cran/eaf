@@ -77,16 +77,17 @@ compute.eaf <- function(data, percentiles = NULL)
   nsets <- length(unique(sets))
   npoints <- tabulate(sets)
   if (is.null(percentiles)) {
-    # FIXME: We should probably compute this in the C code.
+    # FIXME: We should compute this in the C code.
     percentiles <- 1L:nsets * 100.0 / nsets
   }
+  # FIXME: We should handle only integral levels inside the C code. 
   percentiles <- unique.default(sort.int(percentiles))
   return(.Call(compute_eaf_C,
                as.double(t(as.matrix(data[, 1L:nobjs]))),
-               nobjs,
+               as.integer(nobjs),
                as.integer(cumsum(npoints)),
                as.integer(nsets),
-               percentiles))
+               as.numeric(percentiles)))
 }
 
 compute.eaf.as.list <- function(data, percentiles = NULL)
@@ -218,7 +219,7 @@ compute.eafdiff <- function(data, intervals)
 {
   DIFF <- compute.eafdiff.helper(data, intervals)
   #print(DIFF)
-  # FIXME: Do this computation in C code.
+  # FIXME: Do this computation in C code. See compute_eafdiff_area_C
   setcol <- ncol(data)
   eafval <- DIFF[, setcol]
   eafdiff <- list(left  = unique(DIFF[ eafval >= 1L, , drop=FALSE]),
@@ -255,7 +256,7 @@ compute.eafdiff.polygon <- function(data, intervals = 1L)
   data <- data[order(data[, nobjs + 1L]), ]
   sets <- data[ , nobjs + 1L]
   nsets <- length(unique(sets))
-  npoints <- tabulate (sets)
+  npoints <- tabulate(sets)
   # FIXME: Ideally this would be computed by the C code, but it is hard-coded.
   ## division <- nsets %/% 2
   ## nsets1 <- division
@@ -299,7 +300,10 @@ min.finite <- function (x)
 # FIXME: Accept ...
 range.finite <- function(x)
 {
-  return(c(min.finite(x), max.finite(x)))
+  x <- as.vector(x)
+  x <- x[is.finite(x)]
+  if (length(x)) return(range(x))
+  return(NULL)
 }
 
 matrix.maximise <- function(z, maximise)
@@ -323,92 +327,6 @@ matrix.maximise <- function(z, maximise)
   return(z)
 }
 
-#' Read several data sets
-#'
-#' Reads a text file in table format and creates a matrix from it. The file
-#' may contain several sets, separated by empty lines. Lines starting by
-#' `'#'` are considered comments and treated as empty lines. The function
-#' adds an additional column `set` to indicate to which set each row
-#' belongs.
-#'
-#' @param file (`character()`) \cr Filename that contains the data.  Each row
-#'   of the table appears as one line of the file.  If it does not contain an
-#'   \emph{absolute} path, the file name is \emph{relative} to the current
-#'   working directory, \code{\link[base]{getwd}()}.  Tilde-expansion is
-#'   performed where supported.  Files compressed with `xz` are supported.
-#'
-#' @param col_names,col.names Vector of optional names for the variables.  The
-#'   default is to use \samp{"V"} followed by the column number.
-#'
-#' @param text (`character()`) \cr If `file` is not supplied and this is,
-#'   then data are read from the value of `text` via a text connection.
-#'   Notice that a literal string can be used to include (small) data sets
-#'   within R code.
-#'
-#' @return  (`matrix()`) containing a representation of the
-#'  data in the file. An extra column `set` is added to indicate to
-#'  which set each row belongs. 
-#'
-#' @author Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
-#'
-#' @note There are several examples of data sets in
-#'   `system.file(package="eaf","extdata")`.
-#'
-#' `read.data.sets()` is a deprecated alias. It will be removed in the next
-#'   major release.
-#' 
-#' @section Warning:
-#'  A known limitation is that the input file must use newline characters
-#'  native to the host system, otherwise they will be, possibly silently,
-#'  misinterpreted. In GNU/Linux the program `dos2unix` may be used
-#'  to fix newline characters.
-#'
-#'@seealso \code{\link[utils]{read.table}}, [eafplot()], [eafdiffplot()]
-#'
-#'@examples
-#' extdata_path <- system.file(package="eaf","extdata")
-#' A1 <- read_datasets(file.path(extdata_path,"ALG_1_dat.xz"))
-#' str(A1)
-#' A2 <- read_datasets(file.path(extdata_path,"ALG_2_dat.xz"))
-#' str(A2)
-#'
-#' read_datasets(text="1 2\n3 4\n\n5 6\n7 8\n", col_names=c("obj1", "obj2"))
-#' 
-#' @keywords file
-#' @md
-#' @export
-read_datasets <- function(file, col_names, text)
-{
-  if (missing(file) && !missing(text)) {
-    file <- tempfile()
-    writeLines(text, file)
-    on.exit(unlink(file))
-  } else {
-    if (!file.exists(file))
-      stop("error: ", file, ": No such file or directory");
-    file <- normalizePath(file)
-    if (grepl("\\.xz$", file)) {
-      unc_file <- tempfile()
-      writeLines(readLines(zz <- xzfile(file, "r")), unc_file)
-      close(zz)
-      file <- unc_file
-      on.exit(unlink(file))
-    }
-  }
-  out <- .Call(read_data_sets, as.character(file))
-  if (missing(col_names))
-    col_names <- paste0("V", 1L:(ncol(out)-1))
-  colnames(out) <- c(col_names, "set")
-  return(out)
-}
-
-#' @rdname read_datasets
-#' @export
-read.data.sets <- function(file, col.names)
-{
-  .Deprecated("read_datasets")
-  return(read_datasets(file=file, col_names=col.names))
-}
 
 rbind_datasets <- function(x,y)
 {
@@ -449,9 +367,8 @@ points.steps <- function(x)
 #' @param groups Indicates that the EAF must be computed separately for data
 #'   belonging to different groups.
 #'
-#' @param percentiles The percentiles of the EAF of each side that will be
-#'   plotted as attainment surfaces. `NA` does not plot any. See
-#'   [eafplot()].
+#' @param percentiles (`numeric()`) Vector indicating which percentiles are computed.
+#' `NULL` computes all.
 #'
 #' @return  A data frame (`data.frame`) containing the exact representation
 #'  of EAF. The last column gives the percentile that corresponds to each
@@ -543,7 +460,7 @@ get.extremes <- function(xlim, ylim, maximise, log)
 #' curve represents the boundary separating points that are known to be
 #' attainable (that is, dominated in Pareto sense) in at least a fraction
 #' (quantile) of the runs from those that are not. The median EAF represents
-#' the curve where the fraction of attainable points is 50\%.  In single
+#' the curve where the fraction of attainable points is 50%.  In single
 #' objective optimization the function can be used to plot the profile of
 #' solution quality over time of a collection of runs of a stochastic optimizer.
 #' 
@@ -562,12 +479,12 @@ eafplot <- function(x, ...) UseMethod("eafplot")
 #'  
 #' @param sets ([numeric])\cr Vector indicating which set each point belongs to.
 #' 
-#' @param percentiles ([numeric])\cr Vector indicating which percentile should be plot. The
+#' @param percentiles (`numeric()`) Vector indicating which percentile should be plot. The
 #'   default is to plot only the median attainment curve.
 #' 
 #' @param attsurfs   TODO
 #' 
-#' @param type (character(1))\cr string giving the type of plot desired.  The following values
+#' @param type (`character(1)`)\cr string giving the type of plot desired.  The following values
 #'   are possible, \samp{points} and \samp{area}.
 #' 
 #' @param xlab,ylab,xlim,ylim,log,col,lty,lwd,pch,cex.pch,las Graphical
@@ -603,7 +520,7 @@ eafplot <- function(x, ...) UseMethod("eafplot")
 #'
 #' @param ... Other graphical parameters to [plot.default()].
 #' 
-#' @return No value is returned.
+#' @return Return (invisibly) the attainment surfaces computed.
 #' 
 #' @seealso   [read_datasets()] [eafdiffplot()]
 #'
@@ -622,8 +539,10 @@ eafplot <- function(x, ...) UseMethod("eafplot")
 #' extdata_path <- system.file(package = "eaf", "extdata")
 #' A1 <- read_datasets(file.path(extdata_path, "ALG_1_dat.xz"))
 #' A2 <- read_datasets(file.path(extdata_path, "ALG_2_dat.xz"))
-#' eafplot(A1, percentiles = 50, sci.notation = TRUE)
-#' eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
+#' eafplot(A1, percentiles = 50, sci.notation = TRUE, cex.axis=0.6)
+#' # The attainment surfaces are returned invisibly.
+#' attsurfs <- eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
+#' str(attsurfs)
 #' 
 #' ## Save as a PDF file.
 #' # dev.copy2pdf(file = "eaf.pdf", onefile = TRUE, width = 5, height = 4)
@@ -690,8 +609,8 @@ eafplot.default <-
 {
   type <- match.arg (type, c("point", "area"))
   maximise <- as.logical(maximise)
-  xaxis.side <- match.arg (xaxis.side, c("below", "above"))
-  yaxis.side <- match.arg (yaxis.side, c("left", "right"))
+  xaxis.side <- match.arg(xaxis.side, c("below", "above"))
+  yaxis.side <- match.arg(yaxis.side, c("left", "right"))
                       
   if (is.null(col)) {
     if (type == "point") {
@@ -724,7 +643,7 @@ eafplot.default <-
       attsurfs <- compute.eaf.as.list(cbind(x, sets), percentiles)
     } else {
       # FIXME: Is this equivalent to compute.eaf.as.list for each g?
-      EAF <- eafs (x, sets, groups, percentiles)
+      EAF <- eafs(x, sets, groups, percentiles)
       attsurfs <- list()
       groups <- factor(EAF$groups)
       for (g in levels(groups)) {
@@ -883,7 +802,7 @@ eafplot.default <-
   }
 
   box()
-  invisible()
+  invisible(attsurfs)
 }
 
 prettySciNotation <- function(x, digits = 1L)
@@ -979,7 +898,7 @@ plot.eaf.full.area <- function(attsurfs, extreme, maximise, col)
 }
 
 plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
-                               col = c("#FFFFFF", "#BFBFBF","#808080","#404040","#000000"),
+                               col,
                                side = stop("Argument 'side' is required"),
                                type = "point",
                                xlim = NULL, ylim = NULL, log = "",
@@ -1003,9 +922,13 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 
   # Colors are correct for !full.eaf && type == "area"
   if (full.eaf || type == "point") {
+    # FIXME: This is wrong, we should color (0.0, 1] with col[1], then (1, 2]
+    # with col[1], etc, so that we never color the value 0.0 but we always
+    # color the maximum value color without having to force it.
+    
     # Why flooring and not ceiling? If a point has value 2.05, it should
     # be painted with color 2 rather than 3.
-    # +1 because col[1] is white.
+    # +1 because col[1] is white ([0,1)).
     eafdiff[,3] <- floor(eafdiff[,3]) + 1
     if (length(unique(eafdiff[,3])) > length(col)) {
       stop ("Too few colors: length(unique(eafdiff[,3])) > length(col)")
@@ -1014,8 +937,7 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 
   # We do not paint with the same color as the background since this
   # will override the grid lines.
-  ## FIXME: This should actually look at the bg color of the plot
-  col[col == "#FFFFFF"] <- NA
+  col[col %in% c("white", "#FFFFFF")] <- "transparent"
 
   extreme <- get.extremes(xlim, ylim, maximise, log)
   yscale <- 1
@@ -1031,7 +953,6 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
   ##   ylim <- ylim / yscale
   ##   if (log == "y") extreme[2] <- 1
   ## }
-  
   plot(xlim, ylim, type = "n", xlab = "", ylab = "",
        xlim = xlim, ylim = ylim, log = log, axes = FALSE, las = las,
        panel.first = ({
@@ -1051,12 +972,19 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
                #print(unique(polycol))
                #print(length(col))
                ## The maximum value should also be painted.
+               # FIXME: How can this happen???
                polycol[polycol > length(col)] <- length(col)
+               ### For debugging:
+               ## poly_id <- head(1 + cumsum(is.na(eafdiff[,1])),n=-1)
+               ## for(i in which(polycol == 10)) {
+               ##   c_eafdiff <- eafdiff[i == poly_id, ]
+               ##   polygon(c_eafdiff[,1], c_eafdiff[,2], border = FALSE, col = col[polycol[i]])
+               ## }
                #print(eafdiff)
                #print(col[polycol])
                # FIXME: This reduces the number of artifacts but increases the memory consumption of embedFonts(filename) until it crashes.
                #polygon(eafdiff[,1], eafdiff[,2], border = col[polycol], lwd=0.1, col = col[polycol])
-               polygon(eafdiff[,1], eafdiff[,2], border = FALSE, col = col[polycol])
+               polygon(eafdiff[,1], eafdiff[,2], border = col[polycol], col = col[polycol])
              }
            } else {
              ## The maximum value should also be painted.
@@ -1096,7 +1024,7 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #' @param col A character vector of three colors for the magnitude of the
 #'   differences of 0, 0.5, and 1. Intermediate colors are computed
 #'   automatically given the value of `intervals`. Alternatively, a function
-#'   such as [viridis::viridis()] that generates a colormap given an integer
+#'   such as [viridisLite::viridis()] that generates a colormap given an integer
 #'   argument.
 #' 
 #' @param intervals (`integer(1)`|`character()`) \cr The
@@ -1145,9 +1073,9 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'   data sets, and plots on the left the differences in favour
 #'   of the left data set, and on the right the differences in favour of
 #'   the right data set. By default, it also plots the grand best and worst
-#'   attainment surfaces, that is, the 0\% and 100\%-attainment surfaces
-#'   over all data. This two surfaces delimit the area where differences
-#'   may exist. In addition, it also plots the 50\%-attainment surface of
+#'   attainment surfaces, that is, the 0%- and 100%-attainment surfaces
+#'   over all data. These two surfaces delimit the area where differences
+#'   may exist. In addition, it also plots the 50%-attainment surface of
 #'   each data set.
 #'   
 #'   With `type = "point"`, only the points where there is a change in
@@ -1156,7 +1084,7 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'   white even if the value of the differences in that region is
 #'   large. This explains "white holes" surrounded by black
 #'   points.
-#' 
+#'
 #'   With `type = "area"`, the area where the EAF differences has a
 #'   certain value is plotted.  The idea for the algorithm to compute the
 #'   areas was provided by Carlos M. Fonseca.  The implementation uses R
@@ -1164,7 +1092,7 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'   (See
 #'   \url{https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders}). Plots (should) look correct when printed.
 #' 
-#'   Large differences that appear when using `type = "points"` may
+#'   Large differences that appear when using `type = "point"` may
 #'   seem to disappear when using `type = "area"`. The explanation is
 #'   the points size is independent of the axes range, therefore, the
 #'   plotted points may seem to cover a much larger area than the actual
@@ -1187,17 +1115,19 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #' A1 <- read_datasets(file.path(extdata_dir, "ALG_1_dat.xz"))
 #' A2 <- read_datasets(file.path(extdata_dir, "ALG_2_dat.xz"))
 #' \donttest{# These take time
-#'   eafdiffplot(A1, A2, full.eaf = TRUE)
-#'   #library(viridis)
-#'   #viridis_r <- function(n) viridis(n, direction=-1)
-#'   #eafdiffplot(A1, A2, type = "area", col = viridis_r)
+#' eafdiffplot(A1, A2, full.eaf = TRUE)
+#' if (requireNamespace("viridisLite", quietly=TRUE)) {
+#'   viridis_r <- function(n) viridisLite::viridis(n, direction=-1)
+#'   eafdiffplot(A1, A2, type = "area", col = viridis_r)
+#' } else {
 #'   eafdiffplot(A1, A2, type = "area")
-#'   eafdiffplot(A1, A2, type = "point", sci.notation = TRUE)
+#' }
+#' A1 <- read_datasets(file.path(extdata_dir, "wrots_l100w10_dat"))
+#' A2 <- read_datasets(file.path(extdata_dir, "wrots_l10w100_dat"))
+#' eafdiffplot(A1, A2, type = "point", sci.notation = TRUE, cex.axis=0.6)
 #' }
 #' # A more complex example
-#' a1 <- read_datasets(file.path(extdata_dir, "wrots_l100w10_dat"))
-#' a2 <- read_datasets(file.path(extdata_dir, "wrots_l10w100_dat"))
-#' DIFF <- eafdiffplot(a1, a2, col = c("white", "blue", "red"), intervals = 5,
+#' DIFF <- eafdiffplot(A1, A2, col = c("white", "blue", "red"), intervals = 5,
 #'                     type = "point",
 #'                     title.left=expression("W-RoTS," ~ lambda==100 * "," ~ omega==10),
 #'                     title.right=expression("W-RoTS," ~ lambda==10 * "," ~ omega==100),
@@ -1205,10 +1135,10 @@ plot.eafdiff.side <- function (eafdiff, attsurfs = list(),
 #'                       abline(a = 0, b = 1, col = "red", lty = "dashed")})
 #' DIFF$right[,3] <- -DIFF$right[,3]
 #' 
-#'  ## Save the values to a file.
-#'  # write.table(rbind(DIFF$left,DIFF$right),
-#'  #             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
-#'  #             quote = FALSE, row.names = FALSE, col.names = FALSE)
+#' ## Save the values to a file.
+#' # write.table(rbind(DIFF$left,DIFF$right),
+#' #             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
+#' #             quote = FALSE, row.names = FALSE, col.names = FALSE)
 #'
 #'@keywords graphs
 #'@export
@@ -1240,14 +1170,14 @@ eafdiffplot <-
   }
   if (is.function(col)) { # It is a color-map, like viridis()
     col <- col(length(intervals))
-    # The lowest color should always be white.
-    col[1] <- "#FFFFFF"
   } else {
     if (length(col) != 3) {
       stop ("'col' is either three colors (minimum, medium maximum) or a function that produces a colormap")
     }
     col <- colorRampPalette(col)(length(intervals))
   }
+  # FIXME: The lowest color must be white (it should be the background).
+  col[1] <- "white"
   title.left <- title.left
   title.right <- title.right
 
@@ -1363,11 +1293,11 @@ eafdiffplot <-
                      side = "left", maximise = maximise,
                      sci.notation = sci.notation, ...)
 
-  if (is.na(pmatch(legend.pos,"none"))) {
+  if (is.na(pmatch(legend.pos,"none"))){ 
     #nchar(legend.pos) > 0 && !(legend.pos %in% c("no", "none"))) {
     legend(x = legend.pos, y = NULL,
            rev(intervals), rev(col),
-           bg = "white", bty = "n", xjust=0, yjust=0, cex=0.9)
+           bg = "white", bty = "n", xjust=0, yjust=0, cex=0.85)
   }
   left.panel.last
   
@@ -1495,6 +1425,41 @@ eafplot.formula <- function(formula, data, groups = NULL, subset = NULL, ...)
   invisible()
 }
 
+#' Convert a list of attainment surfaces to a data.frame
+#'
+#' Convert a list of attainment surfaces to a single data.frame.
+#'
+#' @param x (`list()`) List of data.frames or matrices. The names of the list
+#'   give the percentiles of the attainment surfaces.  This is the format
+#'   returned by [eafplot()] (and the internal function `compute.eaf.as.list`).
+#'
+#' @return A data.frame with as many columns as objectives and an additional column `percentiles`.
+#'
+#' @examples
+#'
+#' data(SPEA2relativeRichmond)
+#' attsurfs <- eafplot (SPEA2relativeRichmond, percentiles = c(0,50,100),
+#'                      xlab = expression(C[E]), ylab = "Total switches",
+#'                      lty=0, pch=21, xlim = c(90, 140), ylim = c(0, 25))
+#' attsurfs <- attsurf2df(attsurfs)
+#' text(attsurfs[,1:2], labels = attsurfs[,3], adj = c(1.5,1.5))
+#' 
+#' @md
+#' @export
+attsurf2df <- function(x)
+{
+  if (!is.list(x) || is.data.frame(x))
+    stop("'x' must be a list of data.frames or matrices")
+
+  percentiles <- as.numeric(names(x))
+  percentiles <- rep.int(percentiles, sapply(x, nrow))
+  x <- do.call("rbind", x)
+  # Remove duplicated points (keep only the higher values)
+  uniq <- !duplicated(x, fromLast = TRUE)
+  x <- cbind(x[uniq, , drop = FALSE], percentiles = percentiles[uniq])
+  return(x)
+}
+
 
 #' @describeIn eafplot List interface for lists of data.frames or matrices
 #' 
@@ -1516,8 +1481,8 @@ eafplot.list <- function(x, ...)
   groups <- rep(groups, sapply(x, nrow))
   x <- do.call(rbind, x)
   
-  eafplot(as.matrix(x[,c(1,2)]),
-          sets = as.numeric(as.factor(x[, 3])),
+  eafplot(as.matrix(x[,c(1L,2L)]),
+          sets = as.numeric(as.factor(x[, 3L])),
           groups = groups, ...)
 }
 

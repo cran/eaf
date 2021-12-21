@@ -37,7 +37,7 @@ columns, the third one being the set of each point. See also
 \item{col}{A character vector of three colors for the magnitude of the
 differences of 0, 0.5, and 1. Intermediate colors are computed
 automatically given the value of \code{intervals}. Alternatively, a function
-such as \code{\link[viridis:reexports]{viridis::viridis()}} that generates a colormap given an integer
+such as \code{\link[viridisLite:viridis]{viridisLite::viridis()}} that generates a colormap given an integer
 argument.}
 
 \item{intervals}{(\code{integer(1)}|\code{character()}) \cr The
@@ -98,9 +98,9 @@ This function calculates the differences between the EAFs of two
 data sets, and plots on the left the differences in favour
 of the left data set, and on the right the differences in favour of
 the right data set. By default, it also plots the grand best and worst
-attainment surfaces, that is, the 0\\% and 100\\%-attainment surfaces
-over all data. This two surfaces delimit the area where differences
-may exist. In addition, it also plots the 50\\%-attainment surface of
+attainment surfaces, that is, the 0\%- and 100\%-attainment surfaces
+over all data. These two surfaces delimit the area where differences
+may exist. In addition, it also plots the 50\%-attainment surface of
 each data set.
 
 With \code{type = "point"}, only the points where there is a change in
@@ -117,7 +117,7 @@ polygons, which some PDF viewers may have trouble rendering correctly
 (See
 \url{https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-are-there-unwanted-borders}). Plots (should) look correct when printed.
 
-Large differences that appear when using \code{type = "points"} may
+Large differences that appear when using \code{type = "point"} may
 seem to disappear when using \code{type = "area"}. The explanation is
 the points size is independent of the axes range, therefore, the
 plotted points may seem to cover a much larger area than the actual
@@ -135,17 +135,19 @@ extdata_dir <- system.file(package="eaf", "extdata")
 A1 <- read_datasets(file.path(extdata_dir, "ALG_1_dat.xz"))
 A2 <- read_datasets(file.path(extdata_dir, "ALG_2_dat.xz"))
 \donttest{# These take time
-  eafdiffplot(A1, A2, full.eaf = TRUE)
-  #library(viridis)
-  #viridis_r <- function(n) viridis(n, direction=-1)
-  #eafdiffplot(A1, A2, type = "area", col = viridis_r)
+eafdiffplot(A1, A2, full.eaf = TRUE)
+if (requireNamespace("viridisLite", quietly=TRUE)) {
+  viridis_r <- function(n) viridisLite::viridis(n, direction=-1)
+  eafdiffplot(A1, A2, type = "area", col = viridis_r)
+} else {
   eafdiffplot(A1, A2, type = "area")
-  eafdiffplot(A1, A2, type = "point", sci.notation = TRUE)
+}
+A1 <- read_datasets(file.path(extdata_dir, "wrots_l100w10_dat"))
+A2 <- read_datasets(file.path(extdata_dir, "wrots_l10w100_dat"))
+eafdiffplot(A1, A2, type = "point", sci.notation = TRUE, cex.axis=0.6)
 }
 # A more complex example
-a1 <- read_datasets(file.path(extdata_dir, "wrots_l100w10_dat"))
-a2 <- read_datasets(file.path(extdata_dir, "wrots_l10w100_dat"))
-DIFF <- eafdiffplot(a1, a2, col = c("white", "blue", "red"), intervals = 5,
+DIFF <- eafdiffplot(A1, A2, col = c("white", "blue", "red"), intervals = 5,
                     type = "point",
                     title.left=expression("W-RoTS," ~ lambda==100 * "," ~ omega==10),
                     title.right=expression("W-RoTS," ~ lambda==10 * "," ~ omega==100),
@@ -153,10 +155,10 @@ DIFF <- eafdiffplot(a1, a2, col = c("white", "blue", "red"), intervals = 5,
                       abline(a = 0, b = 1, col = "red", lty = "dashed")})
 DIFF$right[,3] <- -DIFF$right[,3]
 
- ## Save the values to a file.
- # write.table(rbind(DIFF$left,DIFF$right),
- #             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
- #             quote = FALSE, row.names = FALSE, col.names = FALSE)
+## Save the values to a file.
+# write.table(rbind(DIFF$left,DIFF$right),
+#             file = "wrots_l100w10_dat-wrots_l10w100_dat-diff.txt",
+#             quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 }
 \seealso{

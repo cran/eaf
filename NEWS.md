@@ -1,3 +1,13 @@
+# eaf 2.3
+
+* `eafplot()` now returns the attainment surfaces computed invisibly.
+
+* New functions `pdf_crop()`, `write_datasets()`, `attsurf2df()`.
+
+* Fix bug that made polygons extend beyond their boundaries affecting
+  `eafdiff()` and `eafdiffplot()`.
+
+
 # eaf 2.2
 
 * `col` argument of `eafdiffplot()` may be a colormap function.

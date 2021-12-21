@@ -57,7 +57,7 @@ data frames of exactly three columns.}
 
 \item{groups}{This may be used to plot profiles of different algorithms on the same plot.}
 
-\item{percentiles}{(\link{numeric})\cr Vector indicating which percentile should be plot. The
+\item{percentiles}{(\code{numeric()}) Vector indicating which percentile should be plot. The
 default is to plot only the median attainment curve.}
 
 \item{attsurfs}{TODO}
@@ -65,7 +65,7 @@ default is to plot only the median attainment curve.}
 \item{xlab, ylab, xlim, ylim, log, col, lty, lwd, pch, cex.pch, las}{Graphical
 parameters, see \code{\link[=plot.default]{plot.default()}}.}
 
-\item{type}{(character(1))\cr string giving the type of plot desired.  The following values
+\item{type}{(\code{character(1)})\cr string giving the type of plot desired.  The following values
 are possible, \samp{points} and \samp{area}.}
 
 \item{legend.pos}{the position of the legend, see \code{\link[=legend]{legend()}}.  A value of \code{"none"} hides the legend.}
@@ -108,7 +108,7 @@ present the plot is conditional to the instances.}
 \item{subset}{(\code{integer()} | \code{NULL})\cr A vector indicating which rows of the data should be used. If left to default \code{NULL} all data in the data frame are used.}
 }
 \value{
-No value is returned.
+Return (invisibly) the attainment surfaces computed.
 }
 \description{
 Computes and plots the Empirical Attainment Function, either as
@@ -120,7 +120,7 @@ by different runs of biobjective stochastic optimization algorithms.  An EAF
 curve represents the boundary separating points that are known to be
 attainable (that is, dominated in Pareto sense) in at least a fraction
 (quantile) of the runs from those that are not. The median EAF represents
-the curve where the fraction of attainable points is 50\%.  In single
+the curve where the fraction of attainable points is 50%.  In single
 objective optimization the function can be used to plot the profile of
 solution quality over time of a collection of runs of a stochastic optimizer.
 }
@@ -148,8 +148,10 @@ eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2,
 extdata_path <- system.file(package = "eaf", "extdata")
 A1 <- read_datasets(file.path(extdata_path, "ALG_1_dat.xz"))
 A2 <- read_datasets(file.path(extdata_path, "ALG_2_dat.xz"))
-eafplot(A1, percentiles = 50, sci.notation = TRUE)
-eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
+eafplot(A1, percentiles = 50, sci.notation = TRUE, cex.axis=0.6)
+# The attainment surfaces are returned invisibly.
+attsurfs <- eafplot(list(A1 = A1, A2 = A2), percentiles = 50)
+str(attsurfs)
 
 ## Save as a PDF file.
 # dev.copy2pdf(file = "eaf.pdf", onefile = TRUE, width = 5, height = 4)
