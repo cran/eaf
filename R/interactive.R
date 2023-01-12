@@ -1,11 +1,10 @@
 #' Interactively choose according to empirical attainment function differences 
 #' 
-#' The function `choose_eafdiffplot()` creates the same plot as `eafdiffplot()`
-#' but waits for the user to click in one of the sides. Then it returns the
-#' rectangles the give the differences in favour of the chosen side. These
-#' rectangles may be used for interactive decision-making as shown in
-#' \citet{DiaLop2020ejor}. The function `choose_eafdiff()` may be used in a
-#' non-interactive context.
+#' Creates the same plot as [eafdiffplot()] but waits for the user to click in
+#' one of the sides. Then it returns the rectangles the give the differences in
+#' favour of the chosen side. These rectangles may be used for interactive
+#' decision-making as shown in \citet{DiaLop2020ejor}. The function
+#' [choose_eafdiff()] may be used in a non-interactive context.
 #' 
 #' @param data.left,data.right Data frames corresponding to the input data of
 #'   left and right sides, respectively. Each data frame has at least three
@@ -58,12 +57,11 @@
 #'                  whv_rect, rectangles=rectangles, reference=reference)
 #' boxplot(list(A1=whv_A1, A2=whv_A2), main = "Weighted hypervolume")
 #' }
-#'@keywords graphs
 #'
 #'@references
 #' \insertAllCited{}
+#' @concept eafviz
 #' @export
-#'@md
 choose_eafdiffplot <- function(data.left, data.right, intervals = 5,
                                maximise = c(FALSE, FALSE),
                                title.left = deparse(substitute(data.left)),
@@ -79,14 +77,9 @@ choose_eafdiffplot <- function(data.left, data.right, intervals = 5,
                   rectangles = TRUE)
 
   coord <- grid::grid.locator("npc")
-  
-  if (coord$x[[1]] < 0.5) {
-    cat("LEFT!\n")
-    return (choose_eafdiff(DIFF, left=TRUE))
-  } else {
-    cat("RIGHT!\n")
-    return (choose_eafdiff(DIFF, left=FALSE))
-  }
+  left <- coord$x[[1]] < 0.5
+  if (left) cat("LEFT!\n") else cat("RIGHT!\n")
+  choose_eafdiff(DIFF, left=left)
 }
 
 #' Identify largest EAF differences
@@ -104,9 +97,9 @@ choose_eafdiffplot <- function(data.left, data.right, intervals = 5,
 #'
 #' @template arg_refpoint
 #'
-#' @template arg_ideal
-#'
-#' @return  (`list()`) A list with two components `best_pair` and `best_value`.
+#' @template arg_ideal_null
+#' 
+#' @return  (`list()`) A list with two components `pair` and `value`.
 #' 
 #'@examples
 #' # FIXME: This example is too large, we need a smaller one.
@@ -121,26 +114,25 @@ choose_eafdiffplot <- function(data.left, data.right, intervals = 5,
 #'@references
 #' \insertAllCited{}
 #' 
+#'@concept eaf
 #'@export
-#'@md
 largest_eafdiff <- function(data, maximise = FALSE, intervals = 5, reference,
                             ideal = NULL)
 {
   nobjs <- 2
   maximise <- as.logical(rep_len(maximise, nobjs))
-  if (nobjs != 2) {
-    stop("sorry: only 2 objectives supported")
-  }
+  if (nobjs != 2) stop("Only 2 objectives currently supported")
+ 
   n <- length(data)
   stopifnot(n > 1)
   best_pair <- NULL
   best_value <- 0
   if (is.null(ideal)) {
-    # or do.call(rbind,), but that consumes lots of memory
-    minmax <- apply(sapply(data, function(x) apply(x[,1:2], 2, range)), 2, range)
-    lower <- minmax[1,]
-    upper <- minmax[2,]
-    ideal <- ifelse(maximise, upper, lower)
+    # This should be equivalent to
+    # cbind(c(range(data[[1]][,1]),range(data[[2]][,1])),
+    #       c(range(data[[1]][,2]),range(data[[2]][,2])))
+    data_agg <- t(do.call(cbind, lapply(data, function(x) matrixStats::colRanges(x[,1:nobjs]))))
+    ideal <- get_ideal(data_agg, maximise = maximise)
   }
   # Convert to a 1-row matrix
   if (is.null(dim(ideal))) dim(ideal) <- c(1,nobjs)
@@ -165,7 +157,7 @@ largest_eafdiff <- function(data, maximise = FALSE, intervals = 5, reference,
       }
     }
   }
-  return(list(pair=best_pair, value = best_value))
+  list(pair=best_pair, value = best_value)
 }
 
 
@@ -177,14 +169,14 @@ largest_eafdiff <- function(data, maximise = FALSE, intervals = 5, reference,
 #'   differences are converted to positive.
 #' 
 #' @rdname choose_eafdiffplot
+#'@concept eaf
 #'@export
-#'@md
 choose_eafdiff <- function(x, left = stop("'left' must be either TRUE or FALSE"))
 {
   if (left) return (x[ x[, ncol(x)] > 0L, , drop = FALSE])
   x <- x[ x[, ncol(x)] < 0L, , drop = FALSE]
   # We always return positive colors.
   x[, ncol(x)] <- abs(x[, ncol(x)])
-  return(x)
+  x
 }
 

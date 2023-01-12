@@ -26,8 +26,8 @@ assuming minimization of all objectives.
 }
 \details{
 The algorithm has \eqn{O(n^{d-2} \log n)} time and linear space
-  complexity in the worst-case, but experimental results show that the
-  pruning techniques used may reduce the time complexity even further.
+complexity in the worst-case, but experimental results show that the
+pruning techniques used may reduce the time complexity even further.
 }
 \examples{
 
@@ -46,3 +46,4 @@ hypervolume(SPEA2minstoptimeRichmond[, 1:2], reference = c(250, 0),
 \author{
 Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
 }
+\concept{metrics}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/eaf.R
 \name{eafs}
 \alias{eafs}
-\title{Exact computation of the EAF}
+\title{Exact computation of the EAF in 2D or 3D}
 \usage{
 eafs(points, sets, groups = NULL, percentiles = NULL)
 }
@@ -25,11 +25,11 @@ point. If groups is not \code{NULL}, then an additional column
 indicates to which group the point belongs.
 }
 \description{
-This function computes the EAF given a set of points and a vector \code{set}
+This function computes the EAF given a set of 2D or 3D points and a vector \code{set}
 that indicates to which set each point belongs.
 }
 \note{
-There are several examples of data sets in \code{system.file(package="eaf","extdata")}.
+There are several examples of data sets in \code{system.file(package="eaf","extdata")}. The current implementation only supports two and three dimensional points.
 }
 \examples{
 extdata_path <- system.file(package="eaf", "extdata")
@@ -43,8 +43,8 @@ str(eafs(x[,1:2], x[,3], percentiles = c(0, 50, 100)))
 
 x <- read_datasets(file.path(extdata_path, "spherical-250-10-3d.txt"))
 y <- read_datasets(file.path(extdata_path, "uniform-250-10-3d.txt"))
-x <- data.frame(x, groups = "spherical")
-x <- rbind(x, data.frame(y, groups = "uniform"))
+x <- rbind(data.frame(x, groups = "spherical"),
+           data.frame(y, groups = "uniform"))
 # Compute only median separately for each group
 z <- eafs(x[,1:3], sets = x[,4], groups = x[,5], percentiles = 50)
 str(z)
@@ -58,3 +58,4 @@ str(z)
 \author{
 Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
 }
+\concept{eaf}

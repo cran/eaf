@@ -52,12 +52,11 @@ corners of each rectangle and the last column. In both cases, the last
 column gives the positive differences in favor of the chosen side.
 }
 \description{
-The function \code{choose_eafdiffplot()} creates the same plot as \code{eafdiffplot()}
-but waits for the user to click in one of the sides. Then it returns the
-rectangles the give the differences in favour of the chosen side. These
-rectangles may be used for interactive decision-making as shown in
-\citet{DiaLop2020ejor}. The function \code{choose_eafdiff()} may be used in a
-non-interactive context.
+Creates the same plot as \code{\link[=eafdiffplot]{eafdiffplot()}} but waits for the user to click in
+one of the sides. Then it returns the rectangles the give the differences in
+favour of the chosen side. These rectangles may be used for interactive
+decision-making as shown in \citet{DiaLop2020ejor}. The function
+\code{\link[=choose_eafdiff]{choose_eafdiff()}} may be used in a non-interactive context.
 }
 \examples{
 
@@ -85,6 +84,7 @@ whv_A2 <- sapply(split.data.frame(A2[, 1:2], A2[, 3]),
                  whv_rect, rectangles=rectangles, reference=reference)
 boxplot(list(A1=whv_A1, A2=whv_A2), main = "Weighted hypervolume")
 }
+
 }
 \references{
 \insertAllCited{}
@@ -92,4 +92,5 @@ boxplot(list(A1=whv_A1, A2=whv_A2), main = "Weighted hypervolume")
 \seealso{
 \code{\link[=read_datasets]{read_datasets()}}, \code{\link[=eafdiffplot]{eafdiffplot()}}, \code{\link[=whv_rect]{whv_rect()}}
 }
-\keyword{graphs}
+\concept{eaf}
+\concept{eafviz}

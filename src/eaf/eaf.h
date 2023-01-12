@@ -51,17 +51,18 @@
     do { WHAT = malloc (NMEMB * sizeof(TYPE));                                 \
         if (!WHAT) { perror (__FILE__ ": " #WHAT ); exit (EXIT_FAILURE); }     \
     } while(0)
-#endif
+#endif // R_PACKAGE
 
 #include "io.h"
 
 /* If the input are always integers, adjusting this type will
    certainly improve performance.  */
+#ifndef objective_t
 #define objective_t double
+#endif
 #if objective_t == double
 # define objective_MAX INFINITY
 # define objective_MIN -INFINITY
-
 # define objective_t_scanf_format "%lf"
 # define read_objective_t_data read_double_data
 #else
