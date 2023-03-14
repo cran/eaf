@@ -44,16 +44,6 @@
 #'
 #' @useDynLib eaf, .registration = TRUE
 #'
-#' @aliases eaf
-#' 
-#' @author
-#' Maintainer:  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}
-#' \email{manuel.lopez-ibanez@manchester.ac.uk}
-#'
-#'  Contributors: Carlos Fonseca, Luis Paquete, Thomas \enc{Stützle}{Stuetzle},
-#'  Manuel \enc{López-Ibáñez}{Lopez-Ibanez}, Marco Chiarandini and
-#'  \enc{Mickaël}{Mickael} Binois.
-#'
 #' @references
 #' 
 #' \insertRef{Grunert01}{eaf}
@@ -61,12 +51,9 @@
 #' \insertRef{GruFon2009:emaa}{eaf}
 #'  
 #' \insertRef{LopPaqStu09emaa}{eaf}
+#'
+#' \insertRef{FonGueLopPaq2011emo}{eaf}
 #'  
-#'@keywords package optimize
-#'@concept multivariate
-#'@concept optimize
-#'@concept time-quality algorithm profile
-#'@concept empirical attainment function
 #'
 #'@examples
 #' data(gcp2x2)
@@ -87,8 +74,12 @@
 #' eafdiffplot(A1, A2)
 #' ## Save to a PDF file
 #' # dev.copy2pdf(file="eaf.pdf", onefile=TRUE, width=5, height=4)
+#' @keywords internal
+#' @concept multivariate
+#' @concept optimize
+#' @concept time-quality algorithm profile
+#' @concept empirical attainment function
 "_PACKAGE"
-#> [1] "_PACKAGE"
 
 
 #' Results of Hybrid GA on vanzyl and Richmond water networks

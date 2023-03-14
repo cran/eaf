@@ -1,7 +1,7 @@
 Package: eaf
 Type: Package
 Title: Plots of the Empirical Attainment Function
-Version: 2.4
+Version: 2.4.1
 Authors@R: c(person("Manuel", "López-Ibáñez", role = c("aut", "cre"),
                               email = "manuel.lopez-ibanez@manchester.ac.uk",
                               comment = c(ORCID = "0000-0001-9974-1295")),
@@ -21,11 +21,11 @@ URL: https://mlopez-ibanez.github.io/eaf/,
 LazyLoad: true
 LazyData: true
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 SystemRequirements: GNU make, Gnu Scientific Library
 RdMacros: Rdpack
 NeedsCompilation: yes
-Packaged: 2023-01-12 14:50:03 UTC; manu
+Packaged: 2023-03-14 15:00:14 UTC; manu
 Author: Manuel López-Ibáñez [aut, cre]
     (<https://orcid.org/0000-0001-9974-1295>),
   Marco Chiarandini [aut],
@@ -35,4 +35,4 @@ Author: Manuel López-Ibáñez [aut, cre]
   Mickaël Binois [ctb]
 Maintainer: Manuel López-Ibáñez <manuel.lopez-ibanez@manchester.ac.uk>
 Repository: CRAN
-Date/Publication: 2023-01-12 16:00:02 UTC
+Date/Publication: 2023-03-14 15:30:02 UTC
