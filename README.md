@@ -63,20 +63,8 @@ visualization.
 Download and installation
 -------------------------
 
-The software is implemented as an R package, but the code for only computing
-the EAF is available as a C program, and it does not require installing R or
-any R packages. Just [download the package source
-code](https://cran.r-project.org/package=eaf), uncompress it, and look for the
-directory `src/eaf`. This code can be used to implement your own visualizations
-instead of the visualizations provided by the **eaf** package. Compiled binaries
-can be found under `system.file(package="eaf", "bin")`. Other useful
-binaries can be found there.
-
-The visualization of the EAFs requires installing the **eaf** package. Therefore,
-a basic knowledge of R is recommended to make use of all features. However, the
-`eaf` package contains two Perl scripts that allow to generate standard plots
-without any R knowledge. See `inst/scripts/eafplot/` and
-`inst/scripts/eafdiff/` in the package source code. The scripts use the **eaf** package internally to generate the plots, and, hence, the **eaf** package must be installed and working.
+The **eaf** package is implemented in R. Therefore,
+a basic knowledge of R is recommended to make use of all features. 
 
 The first step before installing the **eaf** package is to [install R](https://cran.r-project.org/). Once R is installed in the system, there are two methods for installing the **eaf** package:
 
@@ -96,6 +84,19 @@ The first step before installing the **eaf** package is to [install R](https://c
     where `<package>` is one of the three versions available: `.tar.gz` (Unix/BSD/GNU/Linux), `.tgz` (MacOS X), or `.zip` (Windows).
 
 Search the [R documentation](https://cran.r-project.org/faqs.html) if you need more help to install an R package on your system.
+
+The code for computing the EAF is available as a C program, and it does not require installing R or any R packages.  Just [download the package source
+code](https://cran.r-project.org/package=eaf), uncompress it, and look for the
+directory `src/eaf`. The C code can be used to implement your own visualizations
+instead of the visualizations provided by the **eaf** package. Compiled executables for computing the EAF can be found under `system.file(package="eaf", "bin")`. Other useful
+executable programs can be found there.
+
+The `eaf` package also contains two Perl scripts that may allow you to generate
+standard plots without any R knowledge. See `inst/scripts/eafplot/` and
+`inst/scripts/eafdiff/` in the package source code. The scripts use the **eaf**
+package internally to generate the plots, and, hence, the **eaf** package must
+be installed and working.
+
 
 If you wish to be notified of bugfixes and new versions, please subscribe to the [low-volume emo-list](https://lists.dei.uc.pt/mailman/listinfo/emo-list), where announcements will be made.
 
@@ -160,14 +161,30 @@ import os
 
 # Tested with rpy2 2.9.2-1 and 3.2.6
 import numpy as np
-from rpy2.robjects.packages import importr
+from rpy2.robjects.packages import importr, isinstalled, PackageNotInstalledError
 from rpy2.robjects import r as R
 from rpy2.robjects import numpy2ri
+from rpy2.robjects.vectors import StrVector
 numpy2ri.activate()
 from rpy2.interactive import process_revents
 process_revents.start()
 
-eaf = importr("eaf")
+def install_rpackages(packages):
+    if not isinstance(packages, list):
+        packages = [ packages ]
+    utils = importr('utils') # import R's utility package
+    # Selectively install what needs to be installed.
+    names_to_install = [x for x in packages if not isinstalled(x)]
+    if len(names_to_install) > 0:
+        print(f"Installing packages: {names_to_install}")
+        utils.install_packages(StrVector(names_to_install), repos = "https://cloud.r-project.org", verbose=True)
+
+try:
+    eaf = importr("eaf")
+except PackageNotInstalledError as e:
+    install_rpackages("eaf")
+    eaf = importr("eaf") # Retry after install
+
 path = R('system.file(package="eaf", "extdata")')[0] + "/"
 alg1 = eaf.read_data_sets_(path + "ALG_1_dat.xz")
 alg1 = np.asarray(alg1)

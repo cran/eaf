@@ -116,30 +116,30 @@ attainment surfaces for certain percentiles or as points.
 }
 \details{
 This function can be used to plot random sets of points like those obtained
-by different runs of biobjective stochastic optimization algorithms.  An EAF
+by different runs of biobjective stochastic optimisation algorithms.  An EAF
 curve represents the boundary separating points that are known to be
 attainable (that is, dominated in Pareto sense) in at least a fraction
 (quantile) of the runs from those that are not. The median EAF represents
 the curve where the fraction of attainable points is 50\%.  In single
-objective optimization the function can be used to plot the profile of
+objective optimisation the function can be used to plot the profile of
 solution quality over time of a collection of runs of a stochastic optimizer.
 }
 \section{Methods (by class)}{
 \itemize{
-\item \code{default}: Main function
+\item \code{eafplot(default)}: Main function
 
-\item \code{formula}: Formula interface
+\item \code{eafplot(formula)}: Formula interface
 
-\item \code{list}: List interface for lists of data.frames or matrices
+\item \code{eafplot(list)}: List interface for lists of data.frames or matrices
+
 }}
-
 \examples{
 data(gcp2x2)
 tabucol <- subset(gcp2x2, alg != "TSinN1")
 tabucol$alg <- tabucol$alg[drop=TRUE]
 eafplot(time + best ~ run, data = tabucol, subset = tabucol$inst=="DSJC500.5")
 
-\dontrun{# These take time
+\donttest{# These take time
 eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2)
 eafplot(time + best ~ run | inst, groups=alg, data=gcp2x2,
 	percentiles=c(0,50,100), cex.axis = 0.8, lty = c(2,1,2), lwd = c(2,2,2),
@@ -158,7 +158,7 @@ str(attsurfs)
 }
 
 ## Using extra.points
-\dontrun{
+\donttest{
 data(HybridGA)
 data(SPEA2relativeVanzyl)
 eafplot(SPEA2relativeVanzyl, percentiles = c(25, 50, 75), 
@@ -189,4 +189,4 @@ eafplot (SPEA2minstoptimeRichmond, xlab = expression(C[E]),
 \seealso{
 \code{\link[=read_datasets]{read_datasets()}} \code{\link[=eafdiffplot]{eafdiffplot()}} \code{\link[=pdf_crop]{pdf_crop()}}
 }
-\concept{eafviz}
+\concept{visualisation}
