@@ -1,3 +1,7 @@
+# eaf 2.5.1
+
+ * Fix Clang warning.
+
 # eaf 2.5
 
  * The argument `to.range` of `normalise()` has been renamed to `to_range`.
