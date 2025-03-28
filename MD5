@@ -1,6 +1,6 @@
-93b032e80b8823b103b56f54e371517e *DESCRIPTION
+318a9ead9d7fadb52268b3ee9198fc59 *DESCRIPTION
 67a9b544df27756e91664dc3ff4b616b *NAMESPACE
-2204d27e7a3a52f735627006fdd09694 *NEWS.md
+16f74b4efe851deb9b949f4f51e9c415 *NEWS.md
 f3f966f6200318e713fea48a68c027b1 *R/common.R
 f6db8bca7d9f33babcdb8ecb62fbc960 *R/eaf-package.R
 016f25cd8f93a92d1d77a7dd75631386 *R/eaf.R
@@ -16,8 +16,8 @@ a59b4efe2ec233ce0b910c203adbfddb *R/nondominated.R
 d0fee325dd62815498217ab6bbff2140 *R/vorob.R
 e0f5dbe1066f967851aec7e30b8f749f *R/whv.R
 864043835b30246f8d76259ce4a784cd *R/zzz.R
-bc2a2ac4701bee62c0a9bfab6bb9d224 *README.md
-74d58c34ff591a8149cbcad33f3e9fd9 *build/partial.rdb
+fa5b9a3379c611b42b224524e02ae793 *README.md
+a1c3f6bc9f9ddc8b3ecce7214ed9b075 *build/partial.rdb
 af7dcd686df013b00891c94945bb6973 *cleanup
 b29f81a8a6ec29ee553c847813c3e8e1 *configure
 ccd6afc13a270147b964555c785d3798 *configure.ac
@@ -82,7 +82,7 @@ a166d35f3b8d2e37233aa567f3708887 *man/read_datasets.Rd
 2e9311ccc2b5572a0a5e57ba9f95b2d4 *man/whv_rect.Rd
 1dbef022433977ec3f3d13ec0d32d58a *man/write_datasets.Rd
 67b220e44ae2c2a92b1531b6e6a5f5d7 *src/Makevars.in
-52de5aba8a6890074115cc9ce3cc75cc *src/Makevars.ucrt
+cf16502cc20c38bd6b6ed1b5a0d78da9 *src/Makevars.ucrt
 37070f79a1af1ce11f08475434869dc5 *src/Makevars.win
 fe109dca0b4629def3e8312b10a09171 *src/Rcommon.h
 32eb84cd38043045b86cc60b3b41ba07 *src/Reaf.c
